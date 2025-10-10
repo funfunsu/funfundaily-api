@@ -3,6 +3,7 @@ package com.funfun.schedule.service;
 import com.funfun.schedule.entity.ScheduleItem;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -22,7 +23,7 @@ public interface ScheduleItemService {
      * @param id 日程项ID
      * @return 日程项对象（Optional包装）
      */
-    Optional<ScheduleItem> getScheduleItemById(Integer id);
+    Optional<ScheduleItem> getScheduleItemById(Long id);
 
     /**
      * 查询所有日程项
@@ -36,35 +37,35 @@ public interface ScheduleItemService {
      * @param scheduleItem 新的日程项数据
      * @return 更新后的日程项对象
      */
-    ScheduleItem updateScheduleItem(Integer id, ScheduleItem scheduleItem);
+    ScheduleItem updateScheduleItem(Long id, ScheduleItem scheduleItem);
 
     /**
      * 删除日程项
      * @param id 日程项ID
      */
-    void deleteScheduleItem(Integer id);
+    void deleteScheduleItem(Long id);
 
     /**
      * 根据groupId和personId查询日程项
      * @param groupId 组ID
-     * @param personId 人员ID
+     * @param userId 人员ID
      * @return 日程项列表
      */
-    List<ScheduleItem> getScheduleItemsByGroupIdAndPersonId(Integer groupId, Integer personId);
+    List<ScheduleItem> getScheduleItemsByGroupIdAndPersonId(Long groupId, Long userId);
 
     /**
      * 根据groupId查询日程项
      * @param groupId 组ID
      * @return 日程项列表
      */
-    List<ScheduleItem> getScheduleItemsByGroupId(Integer groupId);
+    List<ScheduleItem> getScheduleItemsByGroupId(Long groupId);
 
     /**
      * 根据personId查询日程项
-     * @param personId 人员ID
+     * @param userId 人员ID
      * @return 日程项列表
      */
-    List<ScheduleItem> getScheduleItemsByPersonId(Integer personId);
+    List<ScheduleItem> getScheduleItemsByPersonId(Long userId);
 
     /**
      * 根据itemType查询日程项
@@ -91,5 +92,15 @@ public interface ScheduleItemService {
      * 批量删除日程项
      * @param ids 日程项ID列表
      */
-    void batchDeleteScheduleItems(List<Integer> ids);
+    void batchDeleteScheduleItems(List<Long> ids);
+    
+    /**
+     * 根据groupId、userId、起始日期和结束日期查询日程项，并按日期分组
+     * @param groupId 组ID
+     * @param userId 人员ID
+     * @param fromDate 起始日期
+     * @param toDate 结束日期
+     * @return 按日期分组的日程项Map
+     */
+    Map<String, List<ScheduleItem>> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate);
 }

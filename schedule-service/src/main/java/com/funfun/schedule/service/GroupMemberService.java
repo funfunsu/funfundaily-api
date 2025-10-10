@@ -3,6 +3,7 @@ package com.funfun.schedule.service;
 import com.funfun.schedule.entity.GroupMember;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * GroupMemberService接口，定义群组成员相关的业务逻辑方法
@@ -95,4 +96,11 @@ public interface GroupMemberService {
      * @return 管理员列表
      */
     List<GroupMember> getGroupAdmins(Long groupId, String role);
+    
+    /**
+     * 根据群组ID查询群组成员（包含用户昵称）
+     * @param groupId 群组ID
+     * @return 包含用户昵称的群组成员列表
+     */
+    List<Map<String, Object>> getGroupMembersWithUserInfo(Long groupId);
 }

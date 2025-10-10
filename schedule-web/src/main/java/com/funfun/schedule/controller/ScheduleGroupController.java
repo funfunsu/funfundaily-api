@@ -1,6 +1,6 @@
 package com.funfun.schedule.controller;
 
-import com.funfun.schedule.entity.ScheduleGroup;
+import com.funfun.schedule.entity.Group;
 import com.funfun.schedule.service.ScheduleGroupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,8 +25,8 @@ public class ScheduleGroupController {
      * 创建群组
      */
     @PostMapping
-    public ResponseEntity<ScheduleGroup> createGroup(@RequestBody ScheduleGroup scheduleGroup) {
-        ScheduleGroup createdGroup = scheduleGroupService.createGroup(scheduleGroup);
+    public ResponseEntity<Group> createGroup(@RequestBody Group group) {
+        Group createdGroup = scheduleGroupService.createGroup(group);
         return new ResponseEntity<>(createdGroup, HttpStatus.CREATED);
     }
 
@@ -34,8 +34,8 @@ public class ScheduleGroupController {
      * 根据ID查询群组
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ScheduleGroup> getGroupById(@PathVariable Long id) {
-        ScheduleGroup group = scheduleGroupService.getGroupById(id);
+    public ResponseEntity<Group> getGroupById(@PathVariable Long id) {
+        Group group = scheduleGroupService.getGroupById(id);
         return ResponseEntity.ok(group);
     }
 
@@ -43,8 +43,8 @@ public class ScheduleGroupController {
      * 查询所有群组
      */
     @GetMapping
-    public ResponseEntity<List<ScheduleGroup>> getAllGroups() {
-        List<ScheduleGroup> groups = scheduleGroupService.getAllGroups();
+    public ResponseEntity<List<Group>> getAllGroups() {
+        List<Group> groups = scheduleGroupService.getAllGroups();
         return ResponseEntity.ok(groups);
     }
 
@@ -52,8 +52,8 @@ public class ScheduleGroupController {
      * 根据创建者ID查询群组
      */
     @GetMapping("/creator/{creatorId}")
-    public ResponseEntity<List<ScheduleGroup>> getGroupsByCreator(@PathVariable Long creatorId) {
-        List<ScheduleGroup> groups = scheduleGroupService.getGroupsByCreator(creatorId);
+    public ResponseEntity<List<Group>> getGroupsByCreator(@PathVariable Long creatorId) {
+        List<Group> groups = scheduleGroupService.getGroupsByCreator(creatorId);
         return ResponseEntity.ok(groups);
     }
 
@@ -61,8 +61,8 @@ public class ScheduleGroupController {
      * 根据标题模糊查询群组
      */
     @GetMapping("/search")
-    public ResponseEntity<List<ScheduleGroup>> getGroupsByTitleContaining(@RequestParam String title) {
-        List<ScheduleGroup> groups = scheduleGroupService.getGroupsByTitleContaining(title);
+    public ResponseEntity<List<Group>> getGroupsByTitleContaining(@RequestParam String title) {
+        List<Group> groups = scheduleGroupService.getGroupsByTitleContaining(title);
         return ResponseEntity.ok(groups);
     }
 
@@ -70,10 +70,10 @@ public class ScheduleGroupController {
      * 根据创建时间范围查询群组
      */
     @GetMapping("/create-time")
-    public ResponseEntity<List<ScheduleGroup>> getGroupsByCreateTimeBetween(
+    public ResponseEntity<List<Group>> getGroupsByCreateTimeBetween(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
-        List<ScheduleGroup> groups = scheduleGroupService.getGroupsByCreateTimeBetween(startDate, endDate);
+        List<Group> groups = scheduleGroupService.getGroupsByCreateTimeBetween(startDate, endDate);
         return ResponseEntity.ok(groups);
     }
 
@@ -81,9 +81,9 @@ public class ScheduleGroupController {
      * 更新群组信息
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ScheduleGroup> updateGroup(@PathVariable Long id, @RequestBody ScheduleGroup scheduleGroup) {
-        scheduleGroup.setId(id);
-        ScheduleGroup updatedGroup = scheduleGroupService.updateGroup(scheduleGroup);
+    public ResponseEntity<Group> updateGroup(@PathVariable Long id, @RequestBody Group group) {
+        group.setId(id);
+        Group updatedGroup = scheduleGroupService.updateGroup(group);
         return ResponseEntity.ok(updatedGroup);
     }
 
@@ -109,8 +109,8 @@ public class ScheduleGroupController {
      * 批量查询群组
      */
     @PostMapping("/batch")
-    public ResponseEntity<List<ScheduleGroup>> getGroupsByIds(@RequestBody List<Long> ids) {
-        List<ScheduleGroup> groups = scheduleGroupService.getGroupsByIds(ids);
+    public ResponseEntity<List<Group>> getGroupsByIds(@RequestBody List<Long> ids) {
+        List<Group> groups = scheduleGroupService.getGroupsByIds(ids);
         return ResponseEntity.ok(groups);
     }
 
@@ -118,10 +118,10 @@ public class ScheduleGroupController {
      * 根据标题和创建者查询群组
      */
     @GetMapping("/title-creator")
-    public ResponseEntity<ScheduleGroup> getGroupByTitleAndCreator(
+    public ResponseEntity<Group> getGroupByTitleAndCreator(
             @RequestParam String title,
             @RequestParam Long creator) {
-        ScheduleGroup group = scheduleGroupService.getGroupByTitleAndCreator(title, creator);
+        Group group = scheduleGroupService.getGroupByTitleAndCreator(title, creator);
         return ResponseEntity.ok(group);
     }
 }

@@ -46,13 +46,12 @@ CREATE TABLE `user`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='小程序用户表（兼容微信/支付宝等平台）';
 
-create table schedule_group
+create table fun_group
 (
     `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户唯一ID',
-
-    item_title    VARCHAR(64)     null,
-    item_desc     VARCHAR(128)    null,
-    `create_time` DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
+    group_name    VARCHAR(64)     null,
+    group_desc     VARCHAR(128)    null,
+    `create_time` DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     creator       bigint UNSIGNED not null,
     PRIMARY KEY (`id`),
     KEY `idx_creator` (`creator`) COMMENT '普通索引：创建者'

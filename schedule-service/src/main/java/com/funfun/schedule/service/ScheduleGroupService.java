@@ -1,6 +1,6 @@
 package com.funfun.schedule.service;
 
-import com.funfun.schedule.entity.ScheduleGroup;
+import com.funfun.schedule.entity.Group;
 import java.util.Date;
 import java.util.List;
 
@@ -11,37 +11,37 @@ public interface ScheduleGroupService {
 
     /**
      * 创建群组
-     * @param scheduleGroup 群组对象
+     * @param group 群组对象
      * @return 创建后的群组对象
      */
-    ScheduleGroup createGroup(ScheduleGroup scheduleGroup);
+    Group createGroup(Group group);
 
     /**
      * 根据ID查询群组
      * @param id 群组ID
      * @return 群组对象
      */
-    ScheduleGroup getGroupById(Long id);
+    Group getGroupById(Long id);
 
     /**
      * 查询所有群组
      * @return 群组列表
      */
-    List<ScheduleGroup> getAllGroups();
+    List<Group> getAllGroups();
 
     /**
      * 根据创建者ID查询群组
      * @param creator 创建者ID
      * @return 群组列表
      */
-    List<ScheduleGroup> getGroupsByCreator(Long creator);
+    List<Group> getGroupsByCreator(Long creator);
 
     /**
      * 根据标题模糊查询群组
      * @param title 群组标题
      * @return 群组列表
      */
-    List<ScheduleGroup> getGroupsByTitleContaining(String title);
+    List<Group> getGroupsByTitleContaining(String title);
 
     /**
      * 根据创建时间范围查询群组
@@ -49,14 +49,14 @@ public interface ScheduleGroupService {
      * @param endDate 结束日期
      * @return 群组列表
      */
-    List<ScheduleGroup> getGroupsByCreateTimeBetween(Date startDate, Date endDate);
+    List<Group> getGroupsByCreateTimeBetween(Date startDate, Date endDate);
 
     /**
      * 更新群组信息
-     * @param scheduleGroup 群组对象
+     * @param group 群组对象
      * @return 更新后的群组对象
      */
-    ScheduleGroup updateGroup(ScheduleGroup scheduleGroup);
+    Group updateGroup(Group group);
 
     /**
      * 删除群组
@@ -75,7 +75,7 @@ public interface ScheduleGroupService {
      * @param ids 群组ID列表
      * @return 群组列表
      */
-    List<ScheduleGroup> getGroupsByIds(List<Long> ids);
+    List<Group> getGroupsByIds(List<Long> ids);
 
     /**
      * 根据标题和创建者查询群组
@@ -83,5 +83,5 @@ public interface ScheduleGroupService {
      * @param creator 创建者ID
      * @return 群组对象
      */
-    ScheduleGroup getGroupByTitleAndCreator(String title, Long creator);
+    Group getGroupByTitleAndCreator(String title, Long creator);
 }

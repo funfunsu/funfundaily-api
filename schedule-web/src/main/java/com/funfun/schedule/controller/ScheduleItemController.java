@@ -2,13 +2,20 @@ package com.funfun.schedule.controller;
 
 import com.funfun.schedule.entity.ScheduleItem;
 import com.funfun.schedule.service.ScheduleItemService;
+import io.netty.util.internal.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * ScheduleItemController类，提供RESTful API接口用于ScheduleItem的增删改查操作
@@ -41,8 +48,9 @@ public class ScheduleItemController {
      * @return 日程项对象和HTTP状态码
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ScheduleItem> getScheduleItemById(@PathVariable Integer id) {
-        Optional<ScheduleItem> scheduleItem = scheduleItemService.getScheduleItemById(id);
+    public ResponseEntity<ScheduleItem> getScheduleItemById(@PathVariable String id) {
+        Long idLong = Long.parseLong(id);
+        Optional<ScheduleItem> scheduleItem = scheduleItemService.getScheduleItemById(idLong);
         return scheduleItem.map(item -> new ResponseEntity<>(item, HttpStatus.OK))
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
@@ -52,9 +60,32 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/list")
-    public ResponseEntity<List<ScheduleItem>> getAllScheduleItems() {
-        List<ScheduleItem> scheduleItems = scheduleItemService.getAllScheduleItems();
-        return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
+    public ResponseEntity<?> getAllScheduleItems(
+            @RequestParam(required = false) String groupId, 
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        // 检查必要参数
+        if (groupId == null || userId == null) {
+            return new ResponseEntity<>("groupId and userId are required", HttpStatus.BAD_REQUEST);
+        }
+        
+        Long groupIdLong = Long.parseLong(groupId);
+        Long userIdLong = null;
+        if (!StringUtil.isNullOrEmpty(userId)) {
+             userIdLong = Long.parseLong(userId);
+        }
+        
+        // 如果提供了fromDate和toDate，则按日期范围查询并分组
+        if (fromDate == null || toDate == null) {
+            LocalDateTime localDateTime = LocalDateTime.now();
+            fromDate = new SimpleDateFormat("yyyy-MM-dd").format(localDateTime);
+            toDate = new SimpleDateFormat("yyyy-MM-dd").format(Date.from(localDateTime.plusDays(7).atZone(java.time.ZoneId.systemDefault()).toInstant()));
+
+        }
+        Map<String, List<ScheduleItem>> scheduleItemsByDate =
+                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, fromDate, toDate);
+        return new ResponseEntity<>(scheduleItemsByDate, HttpStatus.OK);
     }
 
     /**
@@ -64,9 +95,10 @@ public class ScheduleItemController {
      * @return 更新后的日程项对象和HTTP状态码
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ScheduleItem> updateScheduleItem(@PathVariable Integer id, @RequestBody ScheduleItem scheduleItem) {
+    public ResponseEntity<ScheduleItem> updateScheduleItem(@PathVariable String id, @RequestBody ScheduleItem scheduleItem) {
         try {
-            ScheduleItem updatedItem = scheduleItemService.updateScheduleItem(id, scheduleItem);
+            Long idLong = Long.parseLong(id);
+            ScheduleItem updatedItem = scheduleItemService.updateScheduleItem(idLong, scheduleItem);
             return new ResponseEntity<>(updatedItem, HttpStatus.OK);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -79,9 +111,10 @@ public class ScheduleItemController {
      * @return HTTP状态码
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteScheduleItem(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteScheduleItem(@PathVariable String id) {
         try {
-            scheduleItemService.deleteScheduleItem(id);
+            Long idLong = Long.parseLong(id);
+            scheduleItemService.deleteScheduleItem(idLong);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -96,8 +129,10 @@ public class ScheduleItemController {
      */
     @GetMapping("/group-person")
     public ResponseEntity<List<ScheduleItem>> getScheduleItemsByGroupIdAndPersonId(
-            @RequestParam Integer groupId, @RequestParam Integer personId) {
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupIdAndPersonId(groupId, personId);
+            @RequestParam String groupId, @RequestParam String personId) {
+        Long groupIdLong = Long.parseLong(groupId);
+        Long personIdLong = Long.parseLong(personId);
+        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupIdAndPersonId(groupIdLong, personIdLong);
         return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
     }
 
@@ -107,8 +142,9 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/group/{groupId}")
-    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByGroupId(@PathVariable Integer groupId) {
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupId(groupId);
+    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByGroupId(@PathVariable String groupId) {
+        Long groupIdLong = Long.parseLong(groupId);
+        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupId(groupIdLong);
         return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
     }
 
@@ -118,8 +154,9 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/person/{personId}")
-    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByPersonId(@PathVariable Integer personId) {
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByPersonId(personId);
+    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByPersonId(@PathVariable String personId) {
+        Long personIdLong = Long.valueOf(personId);
+        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByPersonId(personIdLong);
         return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
     }
 
@@ -162,9 +199,10 @@ public class ScheduleItemController {
      * @return HTTP状态码
      */
     @DeleteMapping("/batch")
-    public ResponseEntity<Void> batchDeleteScheduleItems(@RequestBody List<Integer> ids) {
+    public ResponseEntity<Void> batchDeleteScheduleItems(@RequestBody List<String> ids) {
         try {
-            scheduleItemService.batchDeleteScheduleItems(ids);
+            List<Long> idLongs = ids.stream().map(Long::parseLong).collect(Collectors.toList());
+            scheduleItemService.batchDeleteScheduleItems(idLongs);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (RuntimeException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);

@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * GroupMemberController类，提供群组成员相关的RESTful API接口
@@ -38,11 +39,11 @@ public class GroupMemberController {
     }
 
     /**
-     * 根据群组ID查询群组成员
+     * 根据群组ID查询群组成员（包含用户昵称）
      */
     @GetMapping("/member/{groupId}")
-    public ResponseEntity<List<GroupMember>> getGroupMembersByGroupId(@PathVariable Long groupId) {
-        List<GroupMember> members = groupMemberService.getGroupMembersByGroupId(groupId);
+    public ResponseEntity<List<Map<String, Object>>> getGroupMembersByGroupId(@PathVariable Long groupId) {
+        List<Map<String, Object>> members = groupMemberService.getGroupMembersWithUserInfo(groupId);
         return ResponseEntity.ok(members);
     }
 
