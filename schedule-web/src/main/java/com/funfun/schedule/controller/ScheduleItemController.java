@@ -1,5 +1,6 @@
 package com.funfun.schedule.controller;
 
+import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
 import com.funfun.schedule.entity.ScheduleItem;
 import com.funfun.schedule.service.ScheduleItemService;
 import io.netty.util.internal.StringUtil;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +33,13 @@ public class ScheduleItemController {
 
     /**
      * 创建日程项
-     * @param scheduleItem 日程项对象
      * @return 创建的日程项对象和HTTP状态码
      */
-    @PostMapping
-    public ResponseEntity<ScheduleItem> createScheduleItem(@RequestBody ScheduleItem scheduleItem) {
-        ScheduleItem createdItem = scheduleItemService.createScheduleItem(scheduleItem);
+    @PostMapping("/add")
+    public ResponseEntity<ScheduleItem> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
+        Long userId = 1L;
+        Long groupId = Long.valueOf(request.groupId);
+        ScheduleItem createdItem = scheduleItemService.createScheduleItems(userId, groupId, request.getItems());
         return new ResponseEntity<>(createdItem, HttpStatus.CREATED);
     }
 

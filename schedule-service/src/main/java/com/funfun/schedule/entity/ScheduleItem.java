@@ -1,7 +1,5 @@
 package com.funfun.schedule.entity;
 
-import lombok.Data;
-
 import javax.persistence.*;
 import java.util.Date;
 
@@ -10,7 +8,6 @@ import java.util.Date;
  */
 @Entity
 @Table(name = "schedule_item")
-@Data
 public class ScheduleItem {
 
     @Id
@@ -56,22 +53,128 @@ public class ScheduleItem {
     // 构造方法
     public ScheduleItem() {
     }
+
+    // 手动添加的getter和setter方法
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getItemTitle() {
+        return itemTitle;
+    }
+
+    public void setItemTitle(String itemTitle) {
+        this.itemTitle = itemTitle;
+    }
+
+    public String getItemDesc() {
+        return itemDesc;
+    }
+
+    public void setItemDesc(String itemDesc) {
+        this.itemDesc = itemDesc;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public String getRepeatType() {
+        return repeatType;
+    }
+
+    public void setRepeatType(String repeatType) {
+        this.repeatType = repeatType;
+    }
+
+    public String getRepeatKeys() {
+        return repeatKeys;
+    }
+
+    public void setRepeatKeys(String repeatKeys) {
+        this.repeatKeys = repeatKeys;
+    }
+
+    public Date getRepeatStartDay() {
+        return repeatStartDay;
+    }
+
+    public void setRepeatStartDay(Date repeatStartDay) {
+        this.repeatStartDay = repeatStartDay;
+    }
+
+    public Date getRepeatEndDay() {
+        return repeatEndDay;
+    }
+
+    public void setRepeatEndDay(Date repeatEndDay) {
+        this.repeatEndDay = repeatEndDay;
+    }
+
+    public String getItemType() {
+        return itemType;
+    }
+
+    public void setItemType(String itemType) {
+        this.itemType = itemType;
+    }
+
+    public Date getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(Date startTime) {
+        this.startTime = startTime;
+    }
+
+    public Date getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(Date endTime) {
+        this.endTime = endTime;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public Long getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(Long groupId) {
+        this.groupId = groupId;
+    }
+
     @Override
     public String toString() {
         return "ScheduleItem{" +
                 "id=" + id +
-                ", itemTitle='" + itemTitle + '\'' +
-                ", itemDesc='" + itemDesc + '\'' +
-                ", location='" + location + '\'' +
-                ", repeatType='" + repeatType + '\'' +
-                ", repeatKeys='" + repeatKeys + '\'' +
+                ", itemTitle='" + itemTitle + "'" +
+                ", itemDesc='" + itemDesc + "'" +
+                ", location='" + location + "'" +
+                ", repeatType='" + repeatType + "'" +
+                ", repeatKeys='" + repeatKeys + "'" +
                 ", repeatStartDay=" + repeatStartDay +
                 ", repeatEndDay=" + repeatEndDay +
-                ", itemType='" + itemType + '\'' +
+                ", itemType='" + itemType + "'" +
                 ", startTime=" + startTime +
                 ", endTime=" + endTime +
                 ", userId=" + userId +
                 ", groupId=" + groupId +
-                '}';
+                "}";
     }
 }

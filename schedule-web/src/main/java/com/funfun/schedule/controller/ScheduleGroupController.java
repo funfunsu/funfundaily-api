@@ -56,6 +56,15 @@ public class ScheduleGroupController {
         List<Group> groups = scheduleGroupService.getGroupsByCreator(creatorId);
         return ResponseEntity.ok(groups);
     }
+    
+    /**
+     * 根据用户ID查询该用户所在的所有群组
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Group>> getGroupsByUserId(@PathVariable Long userId) {
+        List<Group> groups = scheduleGroupService.getGroupsByUserId(userId);
+        return ResponseEntity.ok(groups);
+    }
 
     /**
      * 根据标题模糊查询群组

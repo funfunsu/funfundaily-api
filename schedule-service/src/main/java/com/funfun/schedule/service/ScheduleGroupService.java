@@ -84,4 +84,11 @@ public interface ScheduleGroupService {
      * @return 群组对象
      */
     Group getGroupByTitleAndCreator(String title, Long creator);
+    
+    /**
+     * 根据用户ID查询该用户所在的所有群组
+     * @param userId 用户ID
+     * @return 群组列表
+     */
+    List<Group> getGroupsByUserId(Long userId);
 }

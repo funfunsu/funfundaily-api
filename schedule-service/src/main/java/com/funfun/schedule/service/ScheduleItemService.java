@@ -1,5 +1,6 @@
 package com.funfun.schedule.service;
 
+import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
 
 import java.util.List;
@@ -16,7 +17,7 @@ public interface ScheduleItemService {
      * @param scheduleItem 日程项对象
      * @return 创建的日程项对象
      */
-    ScheduleItem createScheduleItem(ScheduleItem scheduleItem);
+    ScheduleItem createScheduleItems(Long userId, Long groupId, List<ScheduleItemDTO> scheduleItem);
 
     /**
      * 根据ID查询日程项
