@@ -1,6 +1,7 @@
 package com.funfun.schedule.service;
 
 import com.funfun.schedule.dto.ScheduleItemDTO;
+import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
 
 import java.util.List;
@@ -103,5 +104,5 @@ public interface ScheduleItemService {
      * @param toDate 结束日期
      * @return 按日期分组的日程项Map
      */
-    Map<String, List<ScheduleItem>> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate);
+    List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate);
 }

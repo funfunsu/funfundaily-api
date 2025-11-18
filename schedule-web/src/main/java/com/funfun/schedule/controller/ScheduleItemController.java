@@ -1,5 +1,6 @@
 package com.funfun.schedule.controller;
 
+import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
 import com.funfun.schedule.entity.ScheduleItem;
 import com.funfun.schedule.service.ScheduleItemService;
@@ -84,7 +85,7 @@ public class ScheduleItemController {
             toDate = new SimpleDateFormat("yyyy-MM-dd").format(Date.from(localDateTime.plusDays(7).atZone(java.time.ZoneId.systemDefault()).toInstant()));
 
         }
-        Map<String, List<ScheduleItem>> scheduleItemsByDate =
+        List<ScheduleListItemDTO> scheduleItemsByDate =
                 scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, fromDate, toDate);
         return new ResponseEntity<>(scheduleItemsByDate, HttpStatus.OK);
     }
@@ -182,18 +183,6 @@ public class ScheduleItemController {
         List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByRepeatType(repeatType);
         return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
     }
-
-    /**
-     * 批量创建日程项
-     * @param scheduleItems 日程项列表
-     * @return 创建的日程项列表和HTTP状态码
-     */
-    @PostMapping("/batch")
-    public ResponseEntity<List<ScheduleItem>> batchCreateScheduleItems(@RequestBody List<ScheduleItem> scheduleItems) {
-        List<ScheduleItem> createdItems = scheduleItemService.batchCreateScheduleItems(scheduleItems);
-        return new ResponseEntity<>(createdItems, HttpStatus.CREATED);
-    }
-
     /**
      * 批量删除日程项
      * @param ids 日程项ID列表
