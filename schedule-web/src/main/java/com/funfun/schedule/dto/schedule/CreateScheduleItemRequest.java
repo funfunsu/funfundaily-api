@@ -6,6 +6,7 @@ import java.util.List;
 
 public class CreateScheduleItemRequest {
     public String groupId;
+    public String userId;
     List<ScheduleItemDTO> items;
 
     public String getGroupId() {
@@ -22,5 +23,13 @@ public class CreateScheduleItemRequest {
 
     public void setItems(List<ScheduleItemDTO> items) {
         this.items = items;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 }

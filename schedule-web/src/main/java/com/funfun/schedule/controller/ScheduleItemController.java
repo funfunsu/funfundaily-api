@@ -1,5 +1,6 @@
 package com.funfun.schedule.controller;
 
+import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
 import com.funfun.schedule.entity.ScheduleItem;
@@ -14,8 +15,6 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -24,6 +23,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/schedule")
 public class ScheduleItemController {
+
+
 
     private final ScheduleItemService scheduleItemService;
 
@@ -38,7 +39,7 @@ public class ScheduleItemController {
      */
     @PostMapping("/add")
     public ResponseEntity<ScheduleItem> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
-        Long userId = 1L;
+        Long userId = Long.valueOf(request.getUserId());
         Long groupId = Long.valueOf(request.groupId);
         ScheduleItem createdItem = scheduleItemService.createScheduleItems(userId, groupId, request.getItems());
         return new ResponseEntity<>(createdItem, HttpStatus.CREATED);
@@ -50,11 +51,10 @@ public class ScheduleItemController {
      * @return 日程项对象和HTTP状态码
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ScheduleItem> getScheduleItemById(@PathVariable String id) {
+    public ResponseEntity<ScheduleItemDTO> getScheduleItemById(@PathVariable String id) {
         Long idLong = Long.parseLong(id);
-        Optional<ScheduleItem> scheduleItem = scheduleItemService.getScheduleItemById(idLong);
-        return scheduleItem.map(item -> new ResponseEntity<>(item, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        ScheduleItemDTO scheduleItem = scheduleItemService.getScheduleItemById(idLong);
+        return new ResponseEntity<>(scheduleItem, HttpStatus.OK);
     }
 
     /**

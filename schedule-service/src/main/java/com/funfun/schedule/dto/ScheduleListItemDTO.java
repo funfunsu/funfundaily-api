@@ -15,9 +15,9 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ScheduleListItemDTO {
     String date;
-    List<ScheduleItem> schedules;
+    List<ScheduleItemDTO> schedules;
 
-    public ScheduleListItemDTO(String date, List<ScheduleItem> schedules) {
+    public ScheduleListItemDTO(String date, List<ScheduleItemDTO> schedules) {
         this.date = date;
         this.schedules = schedules;
     }

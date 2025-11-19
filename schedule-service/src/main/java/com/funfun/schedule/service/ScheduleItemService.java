@@ -25,7 +25,7 @@ public interface ScheduleItemService {
      * @param id 日程项ID
      * @return 日程项对象（Optional包装）
      */
-    Optional<ScheduleItem> getScheduleItemById(Long id);
+    ScheduleItemDTO getScheduleItemById(Long id);
 
     /**
      * 查询所有日程项
