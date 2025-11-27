@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds">
+    <!-- 日志输出格式（包含时间、线程、日志级别、类名、信息） -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-}] [%X{spanId:-}] %-5level %logger{50} - %msg%n" />
+    <!-- 日志存储路径（默认项目根目录/logs，生产环境建议配置绝对路径） -->
+    <property name="LOG_PATH" value="${LOG_HOME:-logs}" />
+
+    <!-- 单日志文件最大大小（核心：限制为200MB） -->
+    <property name="MAX_FILE_SIZE" value="200MB" />
+
+    <!-- 1. 控制台输出（dev环境启用，prod环境可选关闭） -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 2. 文件输出：滚动日志（dev环境，不压缩，保留少量备份） -->
+    <appender name="FILE_DEV" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 日志文件路径+名称 -->
+        <file>${LOG_PATH}/app-dev.log</file>
+
+        <!-- 滚动策略：按文件大小滚动 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <!-- 旧日志文件名格式（app-dev.log.1, app-dev.log.2...） -->
+            <fileNamePattern>${LOG_PATH}/app-dev.log.%i</fileNamePattern>
+            <!-- 最大备份文件数（1个备份，总大小≈200MB×2=400MB，dev环境宽松） -->
+            <maxIndex>1</maxIndex>
+        </rollingPolicy>
+
+        <!-- 触发滚动条件：文件达到200MB -->
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+        </triggeringPolicy>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 3. 文件输出：滚动日志（prod环境，压缩，严格清理） -->
+    <appender name="FILE_PROD" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/app-prod.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <!-- 旧日志文件名格式（压缩为.gz，节省空间） -->
+            <fileNamePattern>${LOG_PATH}/app-prod.log.%i.gz</fileNamePattern>
+            <!-- 最大备份文件数（1个备份，总大小≈200MB（当前）+ 压缩后旧文件（≈几十MB），总≈200M+） -->
+            <maxIndex>1</maxIndex>
+        </rollingPolicy>
+
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+        </triggeringPolicy>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 多环境日志级别配置 -->
+    <springProfile name="dev">
+        <!-- dev环境：日志级别DEBUG（详细），输出到控制台+文件 -->
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE_DEV" />
+        </root>
+        <!-- 业务包日志级别（可选：单独调整自己项目的日志级别） -->
+        <logger name="com.example" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE_DEV" />
+        </logger>
+    </springProfile>
+
+    <springProfile name="prod">
+        <!-- prod环境：日志级别INFO（简洁），仅输出到文件（不输出控制台，节省资源） -->
+        <root level="INFO">
+            <appender-ref ref="FILE_PROD" />
+        </root>
+        <!-- 业务包日志级别（避免冗余，INFO即可） -->
+        <logger name="com.example" level="INFO" additivity="false">
+            <appender-ref ref="FILE_PROD" />
+        </logger>
+        <!-- 框架日志级别（降低冗余，如网关、JPA等） -->
+        <logger name="org.springframework.cloud.gateway" level="WARN" />
+        <logger name="org.hibernate" level="WARN" />
+        <logger name="reactor.netty" level="WARN" />
+    </springProfile>
+</configuration>

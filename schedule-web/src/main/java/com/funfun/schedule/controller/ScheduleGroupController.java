@@ -1,6 +1,9 @@
 package com.funfun.schedule.controller;
 
+import com.funfun.schedule.context.UserContext;
+import com.funfun.schedule.dto.GroupDTO;
 import com.funfun.schedule.entity.Group;
+import com.funfun.schedule.enums.GroupType;
 import com.funfun.schedule.service.ScheduleGroupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,17 +18,21 @@ import java.util.List;
  * ScheduleGroupController类，提供群组相关的RESTful API接口
  */
 @RestController
-@RequestMapping("/api/groups")
+@RequestMapping("/api/group")
 public class ScheduleGroupController {
 
     @Autowired
     private ScheduleGroupService scheduleGroupService;
 
     /**
+     *  curl -X POST http://localhost:8080/api/groups/create \
+     *   -H "Content-Type: application/json" \
+     *   -d '{"groupName": "VVvv"}'
      * 创建群组
      */
-    @PostMapping
-    public ResponseEntity<Group> createGroup(@RequestBody Group group) {
+    @PostMapping("create")
+    public ResponseEntity<Group> createGroup(@RequestBody GroupDTO group) {
+        group.setType(GroupType.Manual.ordinal());
         Group createdGroup = scheduleGroupService.createGroup(group);
         return new ResponseEntity<>(createdGroup, HttpStatus.CREATED);
     }
@@ -42,9 +49,10 @@ public class ScheduleGroupController {
     /**
      * 查询所有群组
      */
-    @GetMapping
-    public ResponseEntity<List<Group>> getAllGroups() {
-        List<Group> groups = scheduleGroupService.getAllGroups();
+    @GetMapping("/list")
+    public ResponseEntity<List<Group>> getGroups() {
+        Long userId =  UserContext.getUserId();
+        List<Group> groups = scheduleGroupService.getGroupList(userId);
         return ResponseEntity.ok(groups);
     }
 
@@ -54,15 +62,6 @@ public class ScheduleGroupController {
     @GetMapping("/creator/{creatorId}")
     public ResponseEntity<List<Group>> getGroupsByCreator(@PathVariable Long creatorId) {
         List<Group> groups = scheduleGroupService.getGroupsByCreator(creatorId);
-        return ResponseEntity.ok(groups);
-    }
-    
-    /**
-     * 根据用户ID查询该用户所在的所有群组
-     */
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Group>> getGroupsByUserId(@PathVariable Long userId) {
-        List<Group> groups = scheduleGroupService.getGroupsByUserId(userId);
         return ResponseEntity.ok(groups);
     }
 

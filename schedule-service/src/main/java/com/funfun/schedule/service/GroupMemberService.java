@@ -1,5 +1,6 @@
 package com.funfun.schedule.service;
 
+import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.GroupMember;
 import java.util.Date;
 import java.util.List;
@@ -102,5 +103,5 @@ public interface GroupMemberService {
      * @param groupId 群组ID
      * @return 包含用户昵称的群组成员列表
      */
-    List<Map<String, Object>> getGroupMembersWithUserInfo(Long groupId);
+    List<UserInfoDTO> getGroupMembersWithUserInfo(Long groupId);
 }

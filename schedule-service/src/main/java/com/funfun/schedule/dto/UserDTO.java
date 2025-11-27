@@ -1,4 +1,4 @@
 package com.funfun.schedule.dto;
 
-public class T {
+public class UserDTO {
 }

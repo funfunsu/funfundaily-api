@@ -4,6 +4,8 @@ import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.exception.CommonException;
+import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.ScheduleItemService;
 import io.netty.util.internal.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,14 +64,14 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/list")
-    public ResponseEntity<?> getAllScheduleItems(
+    public CommonResponse<?> getAllScheduleItems(
             @RequestParam(required = false) String groupId, 
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate) {
         // 检查必要参数
         if (groupId == null || userId == null) {
-            return new ResponseEntity<>("groupId and userId are required", HttpStatus.BAD_REQUEST);
+            CommonException.DATA_INVALID.throwsError("groupId and userId are required");
         }
         
         Long groupIdLong = Long.parseLong(groupId);
@@ -87,7 +89,7 @@ public class ScheduleItemController {
         }
         List<ScheduleListItemDTO> scheduleItemsByDate =
                 scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, fromDate, toDate);
-        return new ResponseEntity<>(scheduleItemsByDate, HttpStatus.OK);
+        return CommonResponse.success(scheduleItemsByDate);
     }
 
     /**

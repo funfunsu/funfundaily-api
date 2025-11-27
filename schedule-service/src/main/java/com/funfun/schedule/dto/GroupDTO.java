@@ -22,6 +22,11 @@ public class GroupDTO {
     private String groupName;
 
     /**
+     * 类型
+     */
+    private int  type;
+
+    /**
      * 群组描述
      */
     private String groupDesc;

@@ -15,6 +15,7 @@ public interface UserService {
      * @return 创建后的用户对象
      */
     User createUser(User user);
+    User createUserByNickname(String nickname);
 
     /**
      * 根据ID查询用户
@@ -97,4 +98,11 @@ public interface UserService {
      * @return 用户列表
      */
     List<User> getUsersByIds(List<Long> ids);
+
+    /**
+     * 生成或者获取用户
+     * @param openId
+     * @return
+     */
+    Long getOrCreateUserIdByOpenId(String openId);
 }

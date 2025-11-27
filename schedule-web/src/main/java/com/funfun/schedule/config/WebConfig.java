@@ -1,7 +1,10 @@
 package com.funfun.schedule.config;
 
+import com.funfun.schedule.interceptor.AuthInterceptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
@@ -17,11 +20,21 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // 允许所有接口跨域
-                .allowedOrigins("http://localhost:5173") // 允许的前端域名（UniApp H5 本地默认端口 8081）
+                .allowedOrigins("http://localhost:5175","http://localhost:5173") // 允许的前端域名（UniApp H5 本地默认端口 8081）
                 // 生产环境需指定真实前端域名，如 "https://xxx.com"，多个用逗号分隔
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 允许的请求方法
                 .allowedHeaders("*") // 允许的请求头（如 Token、Content-Type）
                 .allowCredentials(true) // 允许携带 Cookie（如需登录态共享）
                 .maxAge(3600); // 预检请求（OPTIONS）缓存时间（1小时）
+    }
+
+    @Autowired
+    private AuthInterceptor jwtAuthInterceptor;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(jwtAuthInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/login", "/api/public/**");
     }
 }

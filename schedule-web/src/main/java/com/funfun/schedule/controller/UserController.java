@@ -1,143 +1,128 @@
 package com.funfun.schedule.controller;
 
+import com.alibaba.fastjson2.JSONObject;
+import com.funfun.schedule.config.WeChatConfig;
+import com.funfun.schedule.context.UserContext;
+import com.funfun.schedule.dto.UpdateUserProfileRequest;
+import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.User;
-import com.funfun.schedule.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import com.funfun.schedule.exception.CommonException;
+import com.funfun.schedule.model.CommonResponse;
+import com.funfun.schedule.repository.UserRepository;
+import com.funfun.schedule.service.SessionKeyService;
+import com.funfun.schedule.util.LoginCheckUtil;
+import com.funfun.schedule.util.WeChatDecryptUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.server.reactive.ServerHttpRequest; // WebFlux 原生请求对象
 import org.springframework.web.bind.annotation.*;
+import javax.servlet.http.HttpServletRequest;
 
-import java.util.Date;
-import java.util.List;
+import javax.validation.Valid;
+import java.util.Optional;
 
 /**
- * UserController类，提供用户相关的RESTful API接口
+ * 用户相关接口（WebFlux 兼容版，移除 Servlet 依赖）
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/user")
+@RequiredArgsConstructor
+@Slf4j
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final LoginCheckUtil loginCheckUtil;
+    private final UserRepository userRepository;
+    private final SessionKeyService sessionKeyService;
+    private final WeChatDecryptUtil weChatDecryptUtil;
+    private final WeChatConfig weChatConfig;
 
     /**
-     * 创建用户
+     * 更新用户昵称和头像（关键改动：用 ServerHttpRequest 替代 HttpServletRequest）
      */
-    @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        User createdUser = userService.createUser(user);
-        return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
+    @PostMapping("/update-profile")
+    public CommonResponse<Void> updateUserProfile(
+            @Valid @RequestBody UpdateUserProfileRequest request,
+            HttpServletRequest serverHttpRequest) { // WebFlux 原生请求对象，无需额外依赖
+
+        // 3. 查询本地用户，获取 openId
+        Optional<User> userOpt = userRepository.findById(UserContext.getUserId());
+        if (!userOpt.isPresent()) {
+            CommonException.USER_NOT_EXIST.throwsError("");
+        }
+        User user = userOpt.get();
+        String openId = user.getOpenid();
+
+        // 4. 从 MySQL 查询有效的 sessionKey（逻辑不变）
+        String sessionKey = sessionKeyService.getValidSessionKey(weChatConfig.getAppid(),openId);
+        if (sessionKey == null) {
+            CommonException.LOGIN_INVALID.throwsError("sessionKey无效");
+        }
+
+        // 5. 解密 + 更新用户资料（逻辑不变）
+        JSONObject userInfoJson = weChatDecryptUtil.decrypt(
+                request.getEncryptedData(),
+                sessionKey,
+                request.getIv()
+        );
+        log.info("解密后的用户信息：{}", userInfoJson);
+
+        String nickname = userInfoJson.getString("nickName");
+        String avatarUrl = userInfoJson.getString("avatarUrl");
+        user.setNickname(nickname);
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
+
+        log.info("用户资料更新成功：userId={}, nickname={}", UserContext.getUserId(), nickname);
+        return CommonResponse.success();
     }
 
-    /**
-     * 根据ID查询用户
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        User user = userService.getUserById(id);
-        return ResponseEntity.ok(user);
+    @GetMapping("/info")
+    public CommonResponse<UserInfoDTO> getUserInfo(ServerHttpRequest serverHttpRequest) {
+        // 1. 从请求头获取 Token 并校验
+        Long localUserId = UserContext.getUserId();
+
+        // 3. 查询本地用户表（MySQL）
+        Optional<User> userOpt = userRepository.findById(localUserId);
+        if (!userOpt.isPresent()) {
+            CommonException.USER_NOT_EXIST.throwsError("");
+        }
+        User user = userOpt.get();
+
+        // 4. 实体类转换为 DTO（隐藏敏感字段，按需返回）
+        UserInfoDTO userInfoDTO = new UserInfoDTO();
+        userInfoDTO.setId(user.getId()); // 本地 userId
+        userInfoDTO.setNickname(user.getNickname() != null ? user.getNickname() : "微信用户"); // 默认昵称
+        userInfoDTO.setAvatarUrl(user.getAvatarUrl() != null ? user.getAvatarUrl() : "默认头像URL"); // 默认头像
+        userInfoDTO.setCreateTime(user.getRegisterTime()); // 账号创建时间
+
+        log.info("查询用户信息成功：userId={}", localUserId);
+        return CommonResponse.success(userInfoDTO);
     }
 
-    /**
-     * 根据openid查询用户
-     */
-    @GetMapping("/openid/{openid}")
-    public ResponseEntity<User> getUserByOpenid(@PathVariable String openid) {
-        User user = userService.getUserByOpenid(openid);
-        return ResponseEntity.ok(user);
-    }
 
-    /**
-     * 根据手机号查询用户
-     */
-    @GetMapping("/phone/{phone}")
-    public ResponseEntity<User> getUserByPhone(@PathVariable String phone) {
-        User user = userService.getUserByPhone(phone);
-        return ResponseEntity.ok(user);
-    }
+    // 管理员查询他人信息（示例）
+    @GetMapping("/info/{targetUserId}")
+    public CommonResponse<UserInfoDTO> getOtherUserInfo(
+            @PathVariable Long targetUserId,
+            ServerHttpRequest serverHttpRequest) {
+        Long localUserId = UserContext.getUserId();
+        //todo 校验用户用是否在群里
 
-    /**
-     * 查询所有用户
-     */
-    @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
-        return ResponseEntity.ok(users);
-    }
+        // 3. 查询本地用户表（MySQL）
+        Optional<User> userOpt = userRepository.findById(targetUserId);
+        if (!userOpt.isPresent()) {
+            CommonException.USER_NOT_EXIST.throwsError("");
+        }
+        User user = userOpt.get();
 
-    /**
-     * 根据状态查询用户
-     */
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<User>> getUsersByStatus(@PathVariable Integer status) {
-        List<User> users = userService.getUsersByStatus(status);
-        return ResponseEntity.ok(users);
-    }
+        // 4. 实体类转换为 DTO（隐藏敏感字段，按需返回）
+        UserInfoDTO userInfoDTO = new UserInfoDTO();
+        userInfoDTO.setId(user.getId()); // 本地 userId
+        userInfoDTO.setNickname(user.getNickname() != null ? user.getNickname() : "微信用户"); // 默认昵称
+        userInfoDTO.setAvatarUrl(user.getAvatarUrl() != null ? user.getAvatarUrl() : "默认头像URL"); // 默认头像
+        userInfoDTO.setCreateTime(user.getRegisterTime()); // 账号创建时间
 
-    /**
-     * 根据注册时间范围查询用户
-     */
-    @GetMapping("/register-time")
-    public ResponseEntity<List<User>> getUsersByRegisterTimeBetween(
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
-        List<User> users = userService.getUsersByRegisterTimeBetween(startDate, endDate);
-        return ResponseEntity.ok(users);
-    }
-
-    /**
-     * 更新用户信息
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
-        user.setId(id);
-        User updatedUser = userService.updateUser(user);
-        return ResponseEntity.ok(updatedUser);
-    }
-
-    /**
-     * 删除用户
-     */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * 批量删除用户
-     */
-    @DeleteMapping("/batch")
-    public ResponseEntity<Void> deleteUsers(@RequestBody List<Long> ids) {
-        userService.deleteUsers(ids);
-        return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * 检查用户是否存在
-     */
-    @GetMapping("/exists/openid/{openid}")
-    public ResponseEntity<Boolean> existsByOpenid(@PathVariable String openid) {
-        boolean exists = userService.existsByOpenid(openid);
-        return ResponseEntity.ok(exists);
-    }
-
-    /**
-     * 检查手机号是否已被使用
-     */
-    @GetMapping("/exists/phone/{phone}")
-    public ResponseEntity<Boolean> existsByPhone(@PathVariable String phone) {
-        boolean exists = userService.existsByPhone(phone);
-        return ResponseEntity.ok(exists);
-    }
-
-    /**
-     * 批量查询用户
-     */
-    @PostMapping("/batch")
-    public ResponseEntity<List<User>> getUsersByIds(@RequestBody List<Long> ids) {
-        List<User> users = userService.getUsersByIds(ids);
-        return ResponseEntity.ok(users);
+        log.info("查询用户信息成功：userId={}", localUserId);
+        return CommonResponse.success(userInfoDTO);
     }
 }

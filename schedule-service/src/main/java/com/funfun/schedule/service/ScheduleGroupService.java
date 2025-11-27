@@ -1,5 +1,6 @@
 package com.funfun.schedule.service;
 
+import com.funfun.schedule.dto.GroupDTO;
 import com.funfun.schedule.entity.Group;
 import java.util.Date;
 import java.util.List;
@@ -14,7 +15,8 @@ public interface ScheduleGroupService {
      * @param group 群组对象
      * @return 创建后的群组对象
      */
-    Group createGroup(Group group);
+    Group createGroup(GroupDTO group);
+    Group createAutoGroup(Long userId);
 
     /**
      * 根据ID查询群组
@@ -27,7 +29,7 @@ public interface ScheduleGroupService {
      * 查询所有群组
      * @return 群组列表
      */
-    List<Group> getAllGroups();
+    List<Group> getGroupList(Long userId);
 
     /**
      * 根据创建者ID查询群组
@@ -84,11 +86,4 @@ public interface ScheduleGroupService {
      * @return 群组对象
      */
     Group getGroupByTitleAndCreator(String title, Long creator);
-    
-    /**
-     * 根据用户ID查询该用户所在的所有群组
-     * @param userId 用户ID
-     * @return 群组列表
-     */
-    List<Group> getGroupsByUserId(Long userId);
 }

@@ -1,5 +1,7 @@
 package com.funfun.schedule.entity;
 
+import lombok.Data;
+
 import javax.persistence.*;
 import java.util.Date;
 
@@ -8,6 +10,7 @@ import java.util.Date;
  */
 @Entity
 @Table(name = "fun_group")
+@Data
 public class Group {
 
     // 所有字段声明在前
@@ -21,57 +24,14 @@ public class Group {
     @Column(name = "group_desc", length = 128)
     private String groupDesc; // 群组描述
 
+    @Column(name = "type")
+    private int type; // 类型
+
     @Column(name = "create_time", nullable = false, updatable = false)
-    private Date createTime; // 创建时间
+    private Date createTime = new Date(); // 创建时间
     
     @Column(name = "creator", nullable = false)
     private Long creator; // 创建者ID
-    
-    // 构造方法
-    public Group() {
-        this.createTime = new Date();
-    }
-    
-    // 手动添加的getter和setter方法
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
-    public String getGroupName() {
-        return groupName;
-    }
-    
-    public void setGroupName(String groupName) {
-        this.groupName = groupName;
-    }
-    
-    public String getGroupDesc() {
-        return groupDesc;
-    }
-    
-    public void setGroupDesc(String groupDesc) {
-        this.groupDesc = groupDesc;
-    }
-    
-    public Date getCreateTime() {
-        return createTime;
-    }
-    
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
-    }
-    
-    public Long getCreator() {
-        return creator;
-    }
-    
-    public void setCreator(Long creator) {
-        this.creator = creator;
-    }
 
     @Override
     public String toString() {

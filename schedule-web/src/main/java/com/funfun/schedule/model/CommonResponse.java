@@ -2,6 +2,8 @@ package com.funfun.schedule.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.List;
+
 /**
  * 统一响应类，用于包装所有controller的返回数据
  */
@@ -11,7 +13,7 @@ public class CommonResponse<T> {
     /**
      * 响应码，0表示成功，其他表示失败
      */
-    private int code = 0;
+    private String code = "0";
     
     /**
      * 响应消息
@@ -24,11 +26,11 @@ public class CommonResponse<T> {
     private T data;
     
     // 手动添加的getter和setter方法
-    public int getCode() {
+    public String getCode() {
         return code;
     }
     
-    public void setCode(int code) {
+    public void setCode(String code) {
         this.code = code;
     }
     
@@ -53,7 +55,7 @@ public class CommonResponse<T> {
      */
     public static CommonResponse<Void> success() {
         CommonResponse<Void> response = new CommonResponse<>();
-        response.code = 0;
+        response.code = "0";
         response.message = "success";
         return response;
     }
@@ -63,7 +65,7 @@ public class CommonResponse<T> {
      */
     public static <T> CommonResponse<T> success(T data) {
         CommonResponse<T> response = new CommonResponse<>();
-        response.code = 0;
+        response.code = "0";
         response.message = "success";
         response.data = data; // 直接设置字段值
         return response;
@@ -72,7 +74,7 @@ public class CommonResponse<T> {
     /**
      * 失败响应
      */
-    public static CommonResponse<Void> fail(int code, String message) {
+    public static CommonResponse<Void> fail(String code, String message) {
         CommonResponse<Void> response = new CommonResponse<>();
         response.code = code; // 直接设置字段值
         response.message = message; // 直接设置字段值
