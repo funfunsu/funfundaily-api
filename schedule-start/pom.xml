@@ -13,14 +13,6 @@
     <description>入口模块，引导工程启动以及基础配置</description>
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.funfun</groupId>
             <artifactId>schedule-service</artifactId>
         </dependency>
@@ -28,15 +20,9 @@
             <groupId>com.funfun</groupId>
             <artifactId>schedule-web</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.projectreactor</groupId>
-            <artifactId>reactor-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -63,7 +49,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>3.0.2</version>
+                <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.funfun.schedule.ScheduleApplication</mainClass>
                 </configuration>

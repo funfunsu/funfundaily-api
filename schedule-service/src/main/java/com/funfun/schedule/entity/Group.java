@@ -24,7 +24,7 @@ public class Group {
     @Column(name = "group_desc", length = 128)
     private String groupDesc; // 群组描述
 
-    @Column(name = "type")
+    @Column(name = "type", columnDefinition = "TINYINT")
     private int type; // 类型
 
     @Column(name = "create_time", nullable = false, updatable = false)

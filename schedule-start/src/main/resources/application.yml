@@ -23,3 +23,10 @@ gateway:
       exclude-paths: # 排除不需要统计的路径（如健康检查，可选）
         - /actuator/health
         - /api/public/*
+
+app:
+  cors:
+    allowed-origin-patterns:
+      - "http://localhost:*"
+      - "https://*.funfundaily.com"
+      - "https://funfun.com"

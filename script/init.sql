@@ -12,9 +12,9 @@ create table schedule_item
     item_type        varchar(8)   not null,
     start_time       DATETIME     not null,
     end_time         DATETIME     not null,
-    person_id        bigint       not null,
+    user_id        bigint       not null,
     group_id         bigint       not null,
-    index schedule_item_idx (group_id, person_id)
+    index schedule_item_idx (group_id, user_id)
 );
 
 
@@ -85,7 +85,7 @@ create table checkin_record
     task_id         bigint UNSIGNED  not null,
     user_id         bigint UNSIGNED  not null,
     group_id        bigint UNSIGNED  not null,
-    complete_status tinyint          not null,
+    complete_status TINYINT          not null,
     `complete_time` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `ext_info`      JSON                      DEFAULT NULL COMMENT '扩展信息（JSON格式，存储灵活字段）',
     `delete_flag`   TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-未删除，1-已删除',

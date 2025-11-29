@@ -7,7 +7,6 @@ import com.funfun.schedule.entity.ScheduleItem;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.ScheduleItemService;
-import io.netty.util.internal.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,11 +74,8 @@ public class ScheduleItemController {
         }
         
         Long groupIdLong = Long.parseLong(groupId);
-        Long userIdLong = null;
-        if (!StringUtil.isNullOrEmpty(userId)) {
-             userIdLong = Long.parseLong(userId);
-        }
-        
+        Long userIdLong = Long.parseLong(userId);
+
         // 如果提供了fromDate和toDate，则按日期范围查询并分组
         if (fromDate == null || toDate == null) {
             LocalDateTime localDateTime = LocalDateTime.now();

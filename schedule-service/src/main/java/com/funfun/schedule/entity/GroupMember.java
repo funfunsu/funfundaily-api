@@ -23,7 +23,7 @@ public class GroupMember {
     @Column(name = "role", length = 16)
     private String role; // 角色
 
-    @Column(name = "delete_flag", nullable = false)
+    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
     private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
 
     @Column(name = "create_time", nullable = false, updatable = false)

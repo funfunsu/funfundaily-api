@@ -3,7 +3,7 @@ package com.funfun.schedule.interceptor;
 
 import com.funfun.schedule.anno.NoAuth;
 import com.funfun.schedule.context.UserContext;
-import com.funfun.schedule.util.LoginCheckUtil;
+import com.funfun.schedule.utils.LoginCheckUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;

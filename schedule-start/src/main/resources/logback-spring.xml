@@ -78,10 +78,12 @@
     <springProfile name="prod">
         <!-- prod环境：日志级别INFO（简洁），仅输出到文件（不输出控制台，节省资源） -->
         <root level="INFO">
+            <appender-ref ref="CONSOLE" />
             <appender-ref ref="FILE_PROD" />
         </root>
         <!-- 业务包日志级别（避免冗余，INFO即可） -->
         <logger name="com.example" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE" />
             <appender-ref ref="FILE_PROD" />
         </logger>
         <!-- 框架日志级别（降低冗余，如网关、JPA等） -->

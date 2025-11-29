@@ -1,6 +1,5 @@
 package com.funfun.schedule.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.hibernate.annotations.Type;
 
@@ -30,7 +29,7 @@ public class User {
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl; // 用户头像URL
 
-    @Column(name = "gender")
+    @Column(name = "gender",columnDefinition = "TINYINT")
     private Integer gender; // 性别：0-未知，1-男，2-女
 
     @Column(name = "phone", length = 20)
@@ -54,7 +53,7 @@ public class User {
     @Column(name = "last_login_time")
     private Date lastLoginTime; // 最后登录时间
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false,columnDefinition = "TINYINT")
     private Integer status; // 账号状态：0-禁用，1-正常，2-待审核，3-临时封禁
 
     @Column(name = "user_tag", length = 128)
@@ -64,7 +63,7 @@ public class User {
     @Type(type = "json")
     private JsonNode extInfo; // 扩展信息
 
-    @Column(name = "delete_flag", nullable = false)
+    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
     private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
 
     @Column(name = "inviter_id")

@@ -1,7 +1,8 @@
-package com.funfun.schedule.mapper;
+package com.funfun.schedule;
 
 import com.funfun.schedule.dto.GroupDTO;
 import com.funfun.schedule.entity.Group;
+import com.funfun.schedule.mapper.GroupMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

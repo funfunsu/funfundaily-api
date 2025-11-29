@@ -39,7 +39,7 @@ public class ScoreFlow {
     @Column(name = "operator", nullable = false)
     private Long operator; // 操作人ID
 
-    @Column(name = "delete_flag", nullable = false)
+    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
     private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
 
     // 构造方法

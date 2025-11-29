@@ -1,6 +1,7 @@
-package com.funfun.schedule.util;
+package com.funfun.schedule.utils;
 
 import com.funfun.schedule.exception.CommonException;
+import com.funfun.schedule.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

@@ -10,7 +10,7 @@ import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.repository.UserRepository;
 import com.funfun.schedule.service.SessionKeyService;
-import com.funfun.schedule.util.LoginCheckUtil;
+import com.funfun.schedule.utils.LoginCheckUtil;
 import com.funfun.schedule.util.WeChatDecryptUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

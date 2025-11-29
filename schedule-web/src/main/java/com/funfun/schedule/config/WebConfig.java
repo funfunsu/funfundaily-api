@@ -2,10 +2,13 @@ package com.funfun.schedule.config;
 
 import com.funfun.schedule.interceptor.AuthInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
 
 /**
  * Web配置类
@@ -17,11 +20,14 @@ public class WebConfig implements WebMvcConfigurer {
     // 会被Spring自动扫描到，所以这里不需要额外配置拦截器
     
     // 如有其他Web相关配置，可以在这里添加
+
+    @Autowired
+    CorsConfig corsConfig;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // 允许所有接口跨域
-                .allowedOrigins("http://localhost:5175","http://localhost:5173") // 允许的前端域名（UniApp H5 本地默认端口 8081）
-                // 生产环境需指定真实前端域名，如 "https://xxx.com"，多个用逗号分隔
+                .allowedOriginPatterns(corsConfig.getAllowedOriginPatterns().toArray(new String[0]))                // 生产环境需指定真实前端域名，如 "https://xxx.com"，多个用逗号分隔
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 允许的请求方法
                 .allowedHeaders("*") // 允许的请求头（如 Token、Content-Type）
                 .allowCredentials(true) // 允许携带 Cookie（如需登录态共享）

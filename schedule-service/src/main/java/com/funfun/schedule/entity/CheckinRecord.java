@@ -27,7 +27,7 @@ public class CheckinRecord {
     @Column(name = "group_id", nullable = false)
     private Long groupId; // 群组ID
 
-    @Column(name = "complete_status", nullable = false)
+    @Column(name = "complete_status", nullable = false,columnDefinition = "TINYINT")
     private Integer completeStatus; // 完成状态
 
     @Column(name = "complete_time", nullable = false, updatable = false)
@@ -37,7 +37,7 @@ public class CheckinRecord {
     @Type(type = "json")
     private JsonNode extInfo; // 扩展信息
 
-    @Column(name = "delete_flag", nullable = false)
+    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
     private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
 
     // 构造方法
