@@ -2,6 +2,7 @@ package com.funfun.schedule.controller;
 
 import com.funfun.schedule.dto.DiscoveryItemDTO;
 import com.funfun.schedule.dto.GroupDTO;
+import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.ScheduleGroupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class DiscoveryController {
      * 创建群组
      */
     @GetMapping("list")
-    public ResponseEntity<List<DiscoveryItemDTO>> getList() {
+    public CommonResponse getList() {
         List<DiscoveryItemDTO> list = new ArrayList<>();
         DiscoveryItemDTO itemDTO;
         itemDTO = new DiscoveryItemDTO();
@@ -40,7 +41,7 @@ public class DiscoveryController {
         itemDTO.setUri("/pages/point/exchange");
         itemDTO.setItemType("path");
         list.add(itemDTO);
-        return ResponseEntity.ok(list);
+        return CommonResponse.success(list);
     }
 
 }

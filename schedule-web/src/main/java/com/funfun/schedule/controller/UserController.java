@@ -10,11 +10,9 @@ import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.repository.UserRepository;
 import com.funfun.schedule.service.SessionKeyService;
-import com.funfun.schedule.utils.LoginCheckUtil;
 import com.funfun.schedule.util.WeChatDecryptUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.server.reactive.ServerHttpRequest; // WebFlux 原生请求对象
 import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 
@@ -30,14 +28,12 @@ import java.util.Optional;
 @Slf4j
 public class UserController {
 
-    private final LoginCheckUtil loginCheckUtil;
     private final UserRepository userRepository;
     private final SessionKeyService sessionKeyService;
     private final WeChatDecryptUtil weChatDecryptUtil;
     private final WeChatConfig weChatConfig;
 
     /**
-     * 更新用户昵称和头像（关键改动：用 ServerHttpRequest 替代 HttpServletRequest）
      */
     @PostMapping("/update-profile")
     public CommonResponse<Void> updateUserProfile(
@@ -77,7 +73,7 @@ public class UserController {
     }
 
     @GetMapping("/info")
-    public CommonResponse<UserInfoDTO> getUserInfo(ServerHttpRequest serverHttpRequest) {
+    public CommonResponse<UserInfoDTO> getUserInfo() {
         // 1. 从请求头获取 Token 并校验
         Long localUserId = UserContext.getUserId();
 
@@ -103,8 +99,7 @@ public class UserController {
     // 管理员查询他人信息（示例）
     @GetMapping("/info/{targetUserId}")
     public CommonResponse<UserInfoDTO> getOtherUserInfo(
-            @PathVariable Long targetUserId,
-            ServerHttpRequest serverHttpRequest) {
+            @PathVariable Long targetUserId) {
         Long localUserId = UserContext.getUserId();
         //todo 校验用户用是否在群里
 

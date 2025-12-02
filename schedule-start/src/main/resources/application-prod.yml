@@ -15,7 +15,7 @@ spring:
 # 生产环境：微信小程序正式号配置（替换为你的正式号 appid/secret）
 wechat:
   mini:
-    appid: your-wechat-prod-appid # 微信正式号 appid
+    appid: ${WECHAT_MINI_APP_ID} # 微信正式号 appid
     secret: ${WECHAT_MINI_SECRET} # 生产环境用环境变量存储 secret
     jscode2session-url: https://api.weixin.qq.com/sns/jscode2session
 

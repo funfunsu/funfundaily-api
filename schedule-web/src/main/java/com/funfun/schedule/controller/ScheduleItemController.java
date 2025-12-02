@@ -8,8 +8,6 @@ import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.ScheduleItemService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.SimpleDateFormat;
@@ -39,11 +37,11 @@ public class ScheduleItemController {
      * @return 创建的日程项对象和HTTP状态码
      */
     @PostMapping("/add")
-    public ResponseEntity<ScheduleItem> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
+    public CommonResponse<ScheduleItem> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
         Long userId = Long.valueOf(request.getUserId());
         Long groupId = Long.valueOf(request.groupId);
         ScheduleItem createdItem = scheduleItemService.createScheduleItems(userId, groupId, request.getItems());
-        return new ResponseEntity<>(createdItem, HttpStatus.CREATED);
+        return CommonResponse.success(createdItem);
     }
 
     /**
@@ -52,10 +50,10 @@ public class ScheduleItemController {
      * @return 日程项对象和HTTP状态码
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ScheduleItemDTO> getScheduleItemById(@PathVariable String id) {
+    public CommonResponse<ScheduleItemDTO> getScheduleItemById(@PathVariable String id) {
         Long idLong = Long.parseLong(id);
         ScheduleItemDTO scheduleItem = scheduleItemService.getScheduleItemById(idLong);
-        return new ResponseEntity<>(scheduleItem, HttpStatus.OK);
+        return CommonResponse.success(scheduleItem);
     }
 
     /**
@@ -95,14 +93,10 @@ public class ScheduleItemController {
      * @return 更新后的日程项对象和HTTP状态码
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ScheduleItem> updateScheduleItem(@PathVariable String id, @RequestBody ScheduleItem scheduleItem) {
-        try {
-            Long idLong = Long.parseLong(id);
-            ScheduleItem updatedItem = scheduleItemService.updateScheduleItem(idLong, scheduleItem);
-            return new ResponseEntity<>(updatedItem, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+    public CommonResponse<ScheduleItem> updateScheduleItem(@PathVariable String id, @RequestBody ScheduleItem scheduleItem) {
+        Long idLong = Long.parseLong(id);
+        ScheduleItem updatedItem = scheduleItemService.updateScheduleItem(idLong, scheduleItem);
+        return CommonResponse.success(updatedItem);
     }
 
     /**
@@ -111,14 +105,10 @@ public class ScheduleItemController {
      * @return HTTP状态码
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteScheduleItem(@PathVariable String id) {
-        try {
-            Long idLong = Long.parseLong(id);
-            scheduleItemService.deleteScheduleItem(idLong);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+    public CommonResponse<Void> deleteScheduleItem(@PathVariable String id) {
+        Long idLong = Long.parseLong(id);
+        scheduleItemService.deleteScheduleItem(idLong);
+        return CommonResponse.success();
     }
 
     /**
@@ -128,12 +118,12 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/group-person")
-    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByGroupIdAndPersonId(
+    public CommonResponse<List<ScheduleItem>> getScheduleItemsByGroupIdAndPersonId(
             @RequestParam String groupId, @RequestParam String personId) {
         Long groupIdLong = Long.parseLong(groupId);
         Long personIdLong = Long.parseLong(personId);
         List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupIdAndPersonId(groupIdLong, personIdLong);
-        return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
+        return CommonResponse.success(scheduleItems);
     }
 
     /**
@@ -142,10 +132,10 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/group/{groupId}")
-    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByGroupId(@PathVariable String groupId) {
+    public CommonResponse<List<ScheduleItem>> getScheduleItemsByGroupId(@PathVariable String groupId) {
         Long groupIdLong = Long.parseLong(groupId);
         List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupId(groupIdLong);
-        return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
+        return CommonResponse.success(scheduleItems);
     }
 
     /**
@@ -154,10 +144,10 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/person/{personId}")
-    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByPersonId(@PathVariable String personId) {
+    public CommonResponse<List<ScheduleItem>> getScheduleItemsByPersonId(@PathVariable String personId) {
         Long personIdLong = Long.valueOf(personId);
         List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByPersonId(personIdLong);
-        return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
+        return CommonResponse.success(scheduleItems);
     }
 
     /**
@@ -166,9 +156,9 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/type/{itemType}")
-    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByItemType(@PathVariable String itemType) {
+    public CommonResponse<List<ScheduleItem>> getScheduleItemsByItemType(@PathVariable String itemType) {
         List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByItemType(itemType);
-        return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
+        return CommonResponse.success(scheduleItems);
     }
 
     /**
@@ -177,9 +167,9 @@ public class ScheduleItemController {
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/repeat-type/{repeatType}")
-    public ResponseEntity<List<ScheduleItem>> getScheduleItemsByRepeatType(@PathVariable String repeatType) {
+    public CommonResponse<List<ScheduleItem>> getScheduleItemsByRepeatType(@PathVariable String repeatType) {
         List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByRepeatType(repeatType);
-        return new ResponseEntity<>(scheduleItems, HttpStatus.OK);
+        return CommonResponse.success(scheduleItems);
     }
     /**
      * 批量删除日程项
@@ -187,13 +177,9 @@ public class ScheduleItemController {
      * @return HTTP状态码
      */
     @DeleteMapping("/batch")
-    public ResponseEntity<Void> batchDeleteScheduleItems(@RequestBody List<String> ids) {
-        try {
-            List<Long> idLongs = ids.stream().map(Long::parseLong).collect(Collectors.toList());
-            scheduleItemService.batchDeleteScheduleItems(idLongs);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+    public CommonResponse<Void> batchDeleteScheduleItems(@RequestBody List<String> ids) {
+        List<Long> idLongs = ids.stream().map(Long::parseLong).collect(Collectors.toList());
+        scheduleItemService.batchDeleteScheduleItems(idLongs);
+        return CommonResponse.success();
     }
 }

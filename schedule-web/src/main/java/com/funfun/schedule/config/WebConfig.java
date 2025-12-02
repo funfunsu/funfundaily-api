@@ -1,6 +1,7 @@
 package com.funfun.schedule.config;
 
 import com.funfun.schedule.interceptor.AuthInterceptor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -14,6 +15,7 @@ import java.util.List;
  * Web配置类
  */
 @Configuration
+@Slf4j
 public class WebConfig implements WebMvcConfigurer {
     
     // 由于ResponseAdvice已经使用@RestControllerAdvice注解，
@@ -26,6 +28,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        log.info("getAllowedOriginPatterns:{}",corsConfig.getAllowedOriginPatterns());
         registry.addMapping("/**") // 允许所有接口跨域
                 .allowedOriginPatterns(corsConfig.getAllowedOriginPatterns().toArray(new String[0]))                // 生产环境需指定真实前端域名，如 "https://xxx.com"，多个用逗号分隔
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 允许的请求方法

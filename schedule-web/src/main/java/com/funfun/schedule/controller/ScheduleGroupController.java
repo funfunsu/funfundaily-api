@@ -4,6 +4,7 @@ import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.GroupDTO;
 import com.funfun.schedule.entity.Group;
 import com.funfun.schedule.enums.GroupType;
+import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.ScheduleGroupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -31,105 +32,105 @@ public class ScheduleGroupController {
      * 创建群组
      */
     @PostMapping("create")
-    public ResponseEntity<Group> createGroup(@RequestBody GroupDTO group) {
+    public CommonResponse<Group> createGroup(@RequestBody GroupDTO group) {
         group.setType(GroupType.Manual.ordinal());
         Group createdGroup = scheduleGroupService.createGroup(group);
-        return new ResponseEntity<>(createdGroup, HttpStatus.CREATED);
+        return CommonResponse.success(createdGroup);
     }
 
     /**
      * 根据ID查询群组
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Group> getGroupById(@PathVariable Long id) {
+    public CommonResponse<Group> getGroupById(@PathVariable Long id) {
         Group group = scheduleGroupService.getGroupById(id);
-        return ResponseEntity.ok(group);
+        return CommonResponse.success(group);
     }
 
     /**
      * 查询所有群组
      */
     @GetMapping("/list")
-    public ResponseEntity<List<Group>> getGroups() {
+    public CommonResponse getGroups() {
         Long userId =  UserContext.getUserId();
         List<Group> groups = scheduleGroupService.getGroupList(userId);
-        return ResponseEntity.ok(groups);
+        return CommonResponse.success(groups);
     }
 
     /**
      * 根据创建者ID查询群组
      */
     @GetMapping("/creator/{creatorId}")
-    public ResponseEntity<List<Group>> getGroupsByCreator(@PathVariable Long creatorId) {
+    public CommonResponse getGroupsByCreator(@PathVariable Long creatorId) {
         List<Group> groups = scheduleGroupService.getGroupsByCreator(creatorId);
-        return ResponseEntity.ok(groups);
+        return CommonResponse.success(groups);
     }
 
     /**
      * 根据标题模糊查询群组
      */
     @GetMapping("/search")
-    public ResponseEntity<List<Group>> getGroupsByTitleContaining(@RequestParam String title) {
+    public CommonResponse<List<Group>> getGroupsByTitleContaining(@RequestParam String title) {
         List<Group> groups = scheduleGroupService.getGroupsByTitleContaining(title);
-        return ResponseEntity.ok(groups);
+        return CommonResponse.success(groups);
     }
 
     /**
      * 根据创建时间范围查询群组
      */
     @GetMapping("/create-time")
-    public ResponseEntity<List<Group>> getGroupsByCreateTimeBetween(
+    public CommonResponse getGroupsByCreateTimeBetween(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
         List<Group> groups = scheduleGroupService.getGroupsByCreateTimeBetween(startDate, endDate);
-        return ResponseEntity.ok(groups);
+        return CommonResponse.success(groups);
     }
 
     /**
      * 更新群组信息
      */
     @PutMapping("/{id}")
-    public ResponseEntity<Group> updateGroup(@PathVariable Long id, @RequestBody Group group) {
+    public CommonResponse<Group> updateGroup(@PathVariable Long id, @RequestBody Group group) {
         group.setId(id);
         Group updatedGroup = scheduleGroupService.updateGroup(group);
-        return ResponseEntity.ok(updatedGroup);
+        return CommonResponse.success(updatedGroup);
     }
 
     /**
      * 删除群组
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteGroup(@PathVariable Long id) {
+    public CommonResponse<Void> deleteGroup(@PathVariable Long id) {
         scheduleGroupService.deleteGroup(id);
-        return ResponseEntity.noContent().build();
+        return CommonResponse.success();
     }
 
     /**
      * 批量删除群组
      */
     @DeleteMapping("/batch")
-    public ResponseEntity<Void> deleteGroups(@RequestBody List<Long> ids) {
+    public CommonResponse deleteGroups(@RequestBody List<Long> ids) {
         scheduleGroupService.deleteGroups(ids);
-        return ResponseEntity.noContent().build();
+        return CommonResponse.success();
     }
 
     /**
      * 批量查询群组
      */
     @PostMapping("/batch")
-    public ResponseEntity<List<Group>> getGroupsByIds(@RequestBody List<Long> ids) {
+    public CommonResponse getGroupsByIds(@RequestBody List<Long> ids) {
         List<Group> groups = scheduleGroupService.getGroupsByIds(ids);
-        return ResponseEntity.ok(groups);
+        return CommonResponse.success(groups);
     }
 
     /**
      * 根据标题和创建者查询群组
      */
     @GetMapping("/title-creator")
-    public ResponseEntity<Group> getGroupByTitleAndCreator(
+    public CommonResponse getGroupByTitleAndCreator(
             @RequestParam String title,
             @RequestParam Long creator) {
         Group group = scheduleGroupService.getGroupByTitleAndCreator(title, creator);
-        return ResponseEntity.ok(group);
+        return CommonResponse.success(group);
     }
 }

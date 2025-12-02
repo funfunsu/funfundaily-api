@@ -25,6 +25,7 @@ public class WeChatMiniRealServiceImpl implements WeChatMiniService {
 
     @Override
     public String jscode2session(String code) {
+        log.info(JSONObject.toJSONString(weChatConfig));
         // 安全构建 URL（自动处理参数编码）
         String url;
         try {
