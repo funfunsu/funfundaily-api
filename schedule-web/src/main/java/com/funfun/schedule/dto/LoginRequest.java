@@ -11,4 +11,6 @@ import javax.validation.constraints.NotBlank;
 public class LoginRequest {
     @NotBlank(message = "code不能为空")
     private String code; // 小程序端通过wx.login()获取的code
+
+    private String shareToken; //分享code
 }

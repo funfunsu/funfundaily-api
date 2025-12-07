@@ -89,6 +89,21 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
     }
 
     @Override
+    public Group getOrCreateGroupByUser(Long creator) {
+        //先查找他创建的
+        List<Group> groupList = getGroupsByCreator(creator);
+        if (groupList != null && !groupList.isEmpty()){
+            return groupList.get(0);
+        }
+        //再查找他所在的
+        groupList = getGroupList(creator);
+        if (groupList != null && !groupList.isEmpty()){
+            return groupList.get(0);
+        }
+        return createAutoGroup(creator);
+    }
+
+    @Override
     public List<Group> getGroupsByTitleContaining(String title) {
         return scheduleGroupRepository.findByGroupNameContaining(title);
     }

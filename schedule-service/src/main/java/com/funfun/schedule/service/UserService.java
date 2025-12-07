@@ -104,5 +104,5 @@ public interface UserService {
      * @param openId
      * @return
      */
-    Long getOrCreateUserIdByOpenId(String openId);
+    Long getOrCreateUserIdByOpenId(String openId,Long invitorId);
 }

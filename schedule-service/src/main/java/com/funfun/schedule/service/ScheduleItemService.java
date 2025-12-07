@@ -19,7 +19,7 @@ public interface ScheduleItemService {
      * @param scheduleItem 日程项对象
      * @return 创建的日程项对象
      */
-    ScheduleItem createScheduleItems(Long userId, Long groupId, List<ScheduleItemDTO> scheduleItem);
+    boolean createScheduleItems(Long userId, Long groupId, Long targetUserId, List<ScheduleItemDTO> scheduleItem);
 
     /**
      * 根据ID查询日程项

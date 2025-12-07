@@ -1,13 +1,9 @@
 package com.funfun.schedule.dto.schedule;
 
-import com.funfun.schedule.dto.ScheduleItemDTO;
-
-import java.util.List;
-
-public class CreateScheduleItemRequest {
+public class CopyScheduleItemRequest {
     public String groupId;
     public String targetUserId;
-    List<ScheduleItemDTO> items;
+    public String shareToken;
 
     public String getGroupId() {
         return groupId;
@@ -17,12 +13,12 @@ public class CreateScheduleItemRequest {
         this.groupId = groupId;
     }
 
-    public List<ScheduleItemDTO> getItems() {
-        return items;
+    public String getShareToken() {
+        return shareToken;
     }
 
-    public void setItems(List<ScheduleItemDTO> items) {
-        this.items = items;
+    public void setShareToken(String shareToken) {
+        this.shareToken = shareToken;
     }
 
     public String getTargetUserId() {

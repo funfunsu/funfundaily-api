@@ -162,7 +162,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public Long getOrCreateUserIdByOpenId(String openId) {
+    public Long getOrCreateUserIdByOpenId(String openId,Long invitorId) {
         // 1. 根据 openId 查询已有用户
         return userRepository.findByOpenid(openId)
                 // 2. 存在：直接返回本地 userId
@@ -171,6 +171,7 @@ public class UserServiceImpl implements UserService {
                 .orElseGet(() -> {
                     User newUser = new User();
                     newUser.setOpenid(openId);
+                    newUser.setInviterId(invitorId);
                     // 可选：后续可通过微信接口获取昵称、头像，补充到这里
                     // newUser.setNickname("微信用户");
                     // newUser.setAvatarUrl("默认头像地址");

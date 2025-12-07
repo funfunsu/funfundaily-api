@@ -1,21 +1,32 @@
-create table schedule_item
+
+CREATE TABLE schedule_item
 (
-    id               bigint auto_increment comment 'ID'
-        primary key,
-    item_title       VARCHAR(64)  null,
-    item_desc        VARCHAR(128) null,
-    location         VARCHAR(128) null,
-    repeat_type      VARCHAR(32)  null,
-    repeat_keys      varchar(128),
-    repeat_start_day DATE         null,
-    repeat_end_day   DATE         null,
-    item_type        varchar(8)   not null,
-    start_time       DATETIME     not null,
-    end_time         DATETIME     not null,
-    user_id        bigint       not null,
-    group_id         bigint       not null,
-    index schedule_item_idx (group_id, user_id)
-);
+    id               BIGINT AUTO_INCREMENT COMMENT 'ID'
+        PRIMARY KEY,
+    item_title       VARCHAR(64)  NULL COMMENT '事项标题',
+    item_desc        VARCHAR(128) NULL COMMENT '事项描述',
+    location         VARCHAR(128) NULL COMMENT '地点',
+    repeat_type      VARCHAR(32)  NULL COMMENT '重复类型',
+    repeat_keys      VARCHAR(128) NULL COMMENT '重复键值（如周一、每月1号等）',
+    repeat_start_day DATE         NULL COMMENT '重复开始日期',
+    repeat_end_day   DATE         NULL COMMENT '重复结束日期',
+    item_type        VARCHAR(8)   NOT NULL COMMENT '事项类型',
+    start_time       DATETIME     NOT NULL COMMENT '开始时间',
+    end_time         DATETIME     NOT NULL COMMENT '结束时间', -- 注意：原Java注释为'结束时间'，但字段名是 endTime
+    user_id          BIGINT       NOT NULL COMMENT '用户ID',
+    group_id         BIGINT       NOT NULL COMMENT '组ID',
+    -- 新增的列
+    extra            TEXT         NULL COMMENT '扩展参数', -- 使用TEXT类型更适合存储可能较长的JSON或其他格式的扩展数据
+    label            VARCHAR(256) NULL COMMENT '标签',
+    create_by        BIGINT       NOT NULL COMMENT '创建人ID',
+    update_by        BIGINT       NOT NULL COMMENT '最后更新人ID',
+    create_time      DATETIME     NOT NULL COMMENT '创建时间',
+    update_time      DATETIME     NOT NULL COMMENT '最后更新时间',
+    -- 索引
+    INDEX schedule_item_idx (group_id, user_id)
+) COMMENT='日程事项表';
+
+
 
 
 CREATE TABLE `user`

@@ -50,6 +50,21 @@ public class ScheduleItem {
     @Column(name = "group_id", nullable = false)
     private Long groupId; // 组ID，非空
 
+
+    @Column(name = "extra")
+    private String extra; // 扩展参数
+    @Column(name = "label", length = 256)
+    private String label; // 标签
+
+    @Column(name = "create_by", nullable = false)
+    private Long createBy; // 人员ID，非空
+    @Column(name = "update_by", nullable = false)
+    private Long updateBy; // 人员ID，非空
+    @Column(name = "create_time", nullable = false)
+    private Date createTime; // 结束时间，非空
+    @Column(name = "update_time", nullable = false)
+    private Date updateTime; // 修改时间，非空
+
     // 构造方法
     public ScheduleItem() {
     }
@@ -157,6 +172,54 @@ public class ScheduleItem {
 
     public void setGroupId(Long groupId) {
         this.groupId = groupId;
+    }
+
+    public String getExtra() {
+        return extra;
+    }
+
+    public void setExtra(String extra) {
+        this.extra = extra;
+    }
+
+    public String getLabel() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
+    public Long getCreateBy() {
+        return createBy;
+    }
+
+    public void setCreateBy(Long createBy) {
+        this.createBy = createBy;
+    }
+
+    public Long getUpdateBy() {
+        return updateBy;
+    }
+
+    public void setUpdateBy(Long updateBy) {
+        this.updateBy = updateBy;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
     }
 
     @Override

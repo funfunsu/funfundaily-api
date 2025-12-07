@@ -1,12 +1,19 @@
 package com.funfun.schedule.controller;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
+import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
+import com.funfun.schedule.dto.schedule.CopyScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.entity.ShareRecord;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
+import com.funfun.schedule.service.ScheduleGroupService;
 import com.funfun.schedule.service.ScheduleItemService;
+import com.funfun.schedule.service.ShareService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +21,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -26,10 +34,14 @@ public class ScheduleItemController {
 
 
     private final ScheduleItemService scheduleItemService;
+    private final ScheduleGroupService scheduleGroupService;
+    private final ShareService shareService;
 
     @Autowired
-    public ScheduleItemController(ScheduleItemService scheduleItemService) {
+    public ScheduleItemController(ScheduleItemService scheduleItemService, ScheduleGroupService scheduleGroupService, ShareService shareService) {
         this.scheduleItemService = scheduleItemService;
+        this.scheduleGroupService = scheduleGroupService;
+        this.shareService = shareService;
     }
 
     /**
@@ -37,13 +49,30 @@ public class ScheduleItemController {
      * @return 创建的日程项对象和HTTP状态码
      */
     @PostMapping("/add")
-    public CommonResponse<ScheduleItem> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
-        Long userId = Long.valueOf(request.getUserId());
+    public CommonResponse<Boolean> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
+        Long userId = UserContext.getUserId();
         Long groupId = Long.valueOf(request.groupId);
-        ScheduleItem createdItem = scheduleItemService.createScheduleItems(userId, groupId, request.getItems());
-        return CommonResponse.success(createdItem);
+        Boolean success = scheduleItemService.createScheduleItems(userId, groupId, Long.valueOf(request.getTargetUserId()),request.getItems());
+        return CommonResponse.success(success);
     }
-
+    /**
+     * 创建日程项
+     * @return 创建的日程项对象和HTTP状态码
+     */
+    @PostMapping("/copy")
+    public CommonResponse<Boolean> createScheduleItem(@RequestBody CopyScheduleItemRequest request) {
+        Optional<ShareRecord> shareRecordOptional = shareService.getShareByToken(request.getShareToken());
+        if (!shareRecordOptional.isPresent()){
+            CommonException.DATA_INVALID.throwsError("分享内容不存在");
+        }
+        String shareContent = shareRecordOptional.get().getContent();
+        List<ScheduleItemDTO> list = JSON.parseObject(shareContent,new TypeReference<List<ScheduleItemDTO>>(){});
+        list.forEach(scheduleItemDTO -> {scheduleItemDTO.setId(null);});
+        Long userId = UserContext.getUserId();
+        Long groupId = Long.valueOf(request.groupId);
+        Boolean success = scheduleItemService.createScheduleItems(userId, groupId, Long.valueOf(request.getTargetUserId()),list);
+        return CommonResponse.success(success);
+    }
     /**
      * 根据ID查询日程项
      * @param id 日程项ID

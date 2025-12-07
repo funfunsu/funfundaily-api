@@ -37,6 +37,7 @@ public interface ScheduleGroupService {
      * @return 群组列表
      */
     List<Group> getGroupsByCreator(Long creator);
+    Group getOrCreateGroupByUser(Long creator);
 
     /**
      * 根据标题模糊查询群组

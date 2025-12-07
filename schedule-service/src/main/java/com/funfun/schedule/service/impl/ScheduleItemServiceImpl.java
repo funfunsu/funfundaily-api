@@ -31,14 +31,18 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
 
     @Override
-    public ScheduleItem createScheduleItems(Long userId, Long groupId, List<ScheduleItemDTO> scheduleItem) {
+    public boolean createScheduleItems(Long userId, Long groupId,Long targetUserId, List<ScheduleItemDTO> scheduleItem) {
         for (ScheduleItemDTO scheduleItemDTO : scheduleItem) {
             ScheduleItem scheduleItemEntity = scheduleItemMapper.toEntity(scheduleItemDTO);
-            scheduleItemEntity.setUserId(userId);
+            scheduleItemEntity.setUserId(targetUserId);
             scheduleItemEntity.setGroupId(groupId);
+            scheduleItemEntity.setCreateBy(userId);
+            scheduleItemEntity.setUpdateBy(userId);
+            scheduleItemEntity.setCreateTime(new Date());
+            scheduleItemEntity.setUpdateTime(new Date());
             scheduleItemRepository.save(scheduleItemEntity);
         }
-        return null;
+        return true;
     }
 
     @Override
