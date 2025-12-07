@@ -1,6 +1,5 @@
 package com.funfun.schedule.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
@@ -15,7 +14,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * ScheduleItemService接口的实现类，实现ScheduleItem相关的业务逻辑
@@ -136,9 +134,6 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     @Override
     public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate) {
         try {
-            // 生成日期范围内的所有日期
-            List<String> allDates = generateDates(fromDate, toDate);
-            
             // 查询符合条件的所有日程项
             List<ScheduleItem> allScheduleItems = null;
             if (userId != null) {
@@ -146,26 +141,32 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
             }else{
                 allScheduleItems = scheduleItemRepository.findByGroupId(groupId);
             }
-
             List<ScheduleItemDTO> allScheduleItemDTOS = scheduleItemMapper.toDTOList(allScheduleItems);
-            // 按日期分组存储结果
-            List<ScheduleListItemDTO> result = new ArrayList<>(allDates.size());
-            
-            // 对每个日期进行处理
-            for (String date : allDates) {
-                // 过滤并填充该日期的日程项
-                List<ScheduleItemDTO> filteredSchedules = filterAndFillSchedules(allScheduleItemDTOS, date);
-                // 按开始时间排序
-                filteredSchedules.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
-                result.add(new ScheduleListItemDTO(date,filteredSchedules));
-            }
-            
-            return result;
+            return transferToDateScheduleItems(fromDate,toDate,allScheduleItemDTOS);
         } catch (ParseException e) {
             throw new RuntimeException("Date format error: " + e.getMessage());
         }
     }
-    
+
+
+    @Override
+    public List<ScheduleListItemDTO> transferToDateScheduleItems(String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException {
+        List<String> allDates = generateDates(fromDate, toDate);
+        // 按日期分组存储结果
+        List<ScheduleListItemDTO> result = new ArrayList<>(allDates.size());
+
+        // 对每个日期进行处理
+        for (String date : allDates) {
+            // 过滤并填充该日期的日程项
+            List<ScheduleItemDTO> filteredSchedules = filterAndFillSchedules(list, date);
+            // 按开始时间排序
+            filteredSchedules.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
+            result.add(new ScheduleListItemDTO(date,filteredSchedules));
+        }
+
+        return result;
+    }
+
     /**
      * 生成日期范围内的所有日期
      */
@@ -173,7 +174,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         Date start = dateFormat.parse(startDate);
         Date end = dateFormat.parse(endDate);
-        
+
         long startMillis = start.getTime();
         long endMillis = end.getTime();
         
@@ -198,8 +199,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
      */
     private List<ScheduleItemDTO> filterAndFillSchedules(List<ScheduleItemDTO> schedules, String date) throws ParseException {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        
+
         Date dateObj = dateFormat.parse(date);
         
         // 非重复日程项

@@ -120,3 +120,19 @@ CREATE TABLE `t_session_key` (
                                  UNIQUE KEY `uk_open_id` (wx_id,`open_id`) COMMENT 'openId唯一索引（避免重复存储）',
                                  KEY `idx_expire_time` (`expire_time`) COMMENT '过期时间索引（优化清理效率）'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信sessionKey存储表（集群共享）';
+
+
+
+CREATE TABLE `share_record` (
+                                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                                `token` VARCHAR(64) NOT NULL COMMENT '唯一分享令牌（如UUID）',
+                                `scene_code` VARCHAR(64) NOT NULL COMMENT '分享场景',
+                                `content` TEXT NOT NULL COMMENT '分享内容（JSON格式字符串）',
+                                `creator_id` bigint UNSIGNED  not null COMMENT '分享者ID（如用户ID）',
+                                `expires_at` DATETIME NOT NULL COMMENT '过期时间',
+                                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                PRIMARY KEY (`id`),
+                                UNIQUE KEY `uk_token` (`token`),
+                                KEY `idx_creator_id` (`creator_id`),
+                                KEY `idx_expires_at` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='分享记录表';
