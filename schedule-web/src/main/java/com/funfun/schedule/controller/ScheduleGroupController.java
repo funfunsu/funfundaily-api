@@ -37,6 +37,11 @@ public class ScheduleGroupController {
         Group createdGroup = scheduleGroupService.createGroup(group);
         return CommonResponse.success(createdGroup);
     }
+    @PostMapping("modify")
+    public CommonResponse<Group> modifyGroup(@RequestBody GroupDTO group) {
+        Group createdGroup = scheduleGroupService.updateGroup(group);
+        return CommonResponse.success(createdGroup);
+    }
 
     /**
      * 根据ID查询群组
@@ -90,7 +95,7 @@ public class ScheduleGroupController {
      * 更新群组信息
      */
     @PutMapping("/{id}")
-    public CommonResponse<Group> updateGroup(@PathVariable Long id, @RequestBody Group group) {
+    public CommonResponse<Group> updateGroup(@PathVariable Long id, @RequestBody GroupDTO group) {
         group.setId(id);
         Group updatedGroup = scheduleGroupService.updateGroup(group);
         return CommonResponse.success(updatedGroup);

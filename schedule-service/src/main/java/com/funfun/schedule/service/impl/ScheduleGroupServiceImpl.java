@@ -115,17 +115,17 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
 
     @Override
     @Transactional
-    public Group updateGroup(Group group) {
+    public Group updateGroup(GroupDTO groupDTO) {
         // 检查群组是否存在
-        Group existingGroup = getGroupById(group.getId());
+        Group existingGroup = getGroupById(groupDTO.getId());
         // 检查是否已存在同名群组（排除当前群组）
-        Optional<Group> sameNameGroup = scheduleGroupRepository.findByGroupNameAndCreator(group.getGroupName(), existingGroup.getCreator());
-        if (sameNameGroup.isPresent() && !sameNameGroup.get().getId().equals(group.getId())) {
+        Optional<Group> sameNameGroup = scheduleGroupRepository.findByGroupNameAndCreator(groupDTO.getGroupName(), existingGroup.getCreator());
+        if (sameNameGroup.isPresent() && !sameNameGroup.get().getId().equals(groupDTO.getId())) {
             throw new RuntimeException("您已创建同名群组");
         }
         // 更新群组信息
-        existingGroup.setGroupName(group.getGroupName());
-        existingGroup.setGroupDesc(group.getGroupDesc());
+        existingGroup.setGroupName(groupDTO.getGroupName());
+        existingGroup.setGroupDesc(groupDTO.getGroupDesc());
         return scheduleGroupRepository.save(existingGroup);
     }
 

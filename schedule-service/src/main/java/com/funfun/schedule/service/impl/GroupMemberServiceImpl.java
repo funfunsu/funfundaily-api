@@ -158,6 +158,11 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         
         // 批量查询用户信息
         List<User> users = userService.getUsersByIds(userIds);
+        users.forEach(user -> {
+            if (user.getNickname() == null ||user.getNickname().isBlank()){
+                user.setNickname("还没昵称");
+            }
+        });
 
         return userMapper.toSimpleList(users);
     }

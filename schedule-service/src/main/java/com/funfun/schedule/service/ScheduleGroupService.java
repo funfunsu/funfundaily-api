@@ -56,10 +56,10 @@ public interface ScheduleGroupService {
 
     /**
      * 更新群组信息
-     * @param group 群组对象
+     * @param groupDTO 群组对象
      * @return 更新后的群组对象
      */
-    Group updateGroup(Group group);
+    Group updateGroup(GroupDTO groupDTO);
 
     /**
      * 删除群组
