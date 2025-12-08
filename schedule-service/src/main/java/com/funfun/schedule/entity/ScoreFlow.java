@@ -1,136 +1,115 @@
 package com.funfun.schedule.entity;
 
-import org.hibernate.annotations.Type;
-
 import javax.persistence.*;
-import java.util.Date;
-import java.util.Map;
+import java.time.LocalDateTime;
 
-/**
- * ScoreFlow实体类，对应数据库中的score_flow表
- */
 @Entity
 @Table(name = "score_flow")
 public class ScoreFlow {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // 记录唯一ID
+    private Long id;
+
+    @Column(name = "flow_type", nullable = false)
+    private Integer flowType; // 0 - 入账, 1 - 出账
 
     @Column(name = "score", nullable = false)
-    private Integer score; // 积分数量（正数为增加，负数为减少）
+    private Integer score;
+
+    @Column(name = "remain_score", nullable = false)
+    private Integer remainScore; // 流水发生后的余额快照
 
     @Column(name = "user_id", nullable = false)
-    private Long userId; // 用户ID
+    private Long userId;
 
     @Column(name = "group_id", nullable = false)
-    private Long groupId; // 群组ID
+    private Long groupId;
 
     @Column(name = "event_name", length = 128, nullable = false)
-    private String eventName; // 事件名称
+    private String eventName;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
-    private Date createTime; // 创建时间
+    @Column(name = "label", length = 256)
+    private String label;
 
-    @Column(name = "ext_info", columnDefinition = "JSON")
-    @Type(type = "json")
-    private Map<String, Object> extInfo; // 扩展信息
+    @Column(name = "create_time", nullable = false)
+    private LocalDateTime createTime;
+
+    @Column(name = "extra", columnDefinition = "TEXT")
+    private String extra; // 扩展参数
 
     @Column(name = "operator", nullable = false)
     private Long operator; // 操作人ID
 
-    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
-    private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
+    @Column(name = "delete_flag", nullable = false)
+    private Integer deleteFlag = 0; // 逻辑删除标志
 
-    // 构造方法
-    public ScoreFlow() {
-        this.createTime = new Date();
-        this.deleteFlag = 0;
-    }
+    // Constructors
+    public ScoreFlow() {}
 
-    // Getter和Setter方法
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Integer getScore() {
-        return score;
-    }
-
-    public void setScore(Integer score) {
+    public ScoreFlow(Integer flowType, Integer score, Integer remainScore, Long userId, Long groupId, String eventName, String label, Long operator) {
+        this.flowType = flowType;
         this.score = score;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
+        this.remainScore = remainScore;
         this.userId = userId;
-    }
-
-    public Long getGroupId() {
-        return groupId;
-    }
-
-    public void setGroupId(Long groupId) {
         this.groupId = groupId;
-    }
-
-    public String getEventName() {
-        return eventName;
-    }
-
-    public void setEventName(String eventName) {
         this.eventName = eventName;
-    }
-
-    public Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public Map<String, Object> getExtInfo() {
-        return extInfo;
-    }
-
-    public void setExtInfo(Map<String, Object> extInfo) {
-        this.extInfo = extInfo;
-    }
-
-    public Long getOperator() {
-        return operator;
-    }
-
-    public void setOperator(Long operator) {
+        this.label = label;
         this.operator = operator;
+        this.createTime = LocalDateTime.now();
     }
 
-    public Integer getDeleteFlag() {
-        return deleteFlag;
-    }
 
-    public void setDeleteFlag(Integer deleteFlag) {
-        this.deleteFlag = deleteFlag;
-    }
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Integer getFlowType() { return flowType; }
+    public void setFlowType(Integer flowType) { this.flowType = flowType; }
+
+    public Integer getScore() { return score; }
+    public void setScore(Integer score) { this.score = score; }
+
+    public Integer getRemainScore() { return remainScore; }
+    public void setRemainScore(Integer remainScore) { this.remainScore = remainScore; }
+
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+
+    public Long getGroupId() { return groupId; }
+    public void setGroupId(Long groupId) { this.groupId = groupId; }
+
+    public String getEventName() { return eventName; }
+    public void setEventName(String eventName) { this.eventName = eventName; }
+
+    public String getLabel() { return label; }
+    public void setLabel(String label) { this.label = label; }
+
+    public LocalDateTime getCreateTime() { return createTime; }
+    public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
+
+    public String getExtra() { return extra; }
+    public void setExtra(String extra) { this.extra = extra; }
+
+    public Long getOperator() { return operator; }
+    public void setOperator(Long operator) { this.operator = operator; }
+
+    public Integer getDeleteFlag() { return deleteFlag; }
+    public void setDeleteFlag(Integer deleteFlag) { this.deleteFlag = deleteFlag; }
 
     @Override
     public String toString() {
         return "ScoreFlow{" +
                 "id=" + id +
+                ", flowType=" + flowType +
                 ", score=" + score +
+                ", remainScore=" + remainScore +
                 ", userId=" + userId +
                 ", groupId=" + groupId +
                 ", eventName='" + eventName + '\'' +
+                ", label='" + label + '\'' +
                 ", createTime=" + createTime +
-                ", extInfo=" + extInfo +
+                ", extra='" + extra + '\'' +
                 ", operator=" + operator +
                 ", deleteFlag=" + deleteFlag +
                 '}';

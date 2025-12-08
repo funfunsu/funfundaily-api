@@ -1,115 +1,65 @@
 package com.funfun.schedule.entity;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import org.hibernate.annotations.Type;
-
 import javax.persistence.*;
-import java.util.Date;
-import java.util.Map;
+import java.time.LocalDateTime;
 
-/**
- * CheckinRecord实体类，对应数据库中的checkin_record表
- */
 @Entity
 @Table(name = "checkin_record")
 public class CheckinRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // 记录唯一ID
+    private Long id;
 
     @Column(name = "task_id", nullable = false)
-    private Long taskId; // 任务ID
+    private Long taskId;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId; // 用户ID
+    private Long userId;
 
     @Column(name = "group_id", nullable = false)
-    private Long groupId; // 群组ID
+    private Long groupId;
 
-    @Column(name = "complete_status", nullable = false,columnDefinition = "TINYINT")
-    private Integer completeStatus; // 完成状态
+    @Column(name = "complete_time", nullable = false)
+    private LocalDateTime completeTime;
 
-    @Column(name = "complete_time", nullable = false, updatable = false)
-    private Date completeTime; // 完成时间
+    @Column(name = "extra", columnDefinition = "TEXT")
+    private String extra; // 可以考虑使用 @Convert(converter = JsonConverter.class) 转换为 Map 或 Object
 
-    @Column(name = "ext_info", columnDefinition = "JSON")
-    @Type(type = "json")
-    private JsonNode extInfo; // 扩展信息
+    @Column(name = "delete_flag", nullable = false)
+    private Integer deleteFlag = 0; // 逻辑删除标志
 
-    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
-    private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
+    // Constructors
+    public CheckinRecord() {}
 
-    // 构造方法
-    public CheckinRecord() {
-        this.completeTime = new Date();
-        this.deleteFlag = 0;
-    }
-
-    // Getter和Setter方法
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getTaskId() {
-        return taskId;
-    }
-
-    public void setTaskId(Long taskId) {
+    public CheckinRecord(Long taskId, Long userId, Long groupId) {
         this.taskId = taskId;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
         this.userId = userId;
-    }
-
-    public Long getGroupId() {
-        return groupId;
-    }
-
-    public void setGroupId(Long groupId) {
         this.groupId = groupId;
+        this.completeTime = LocalDateTime.now();
     }
 
-    public Integer getCompleteStatus() {
-        return completeStatus;
-    }
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setCompleteStatus(Integer completeStatus) {
-        this.completeStatus = completeStatus;
-    }
+    public Long getTaskId() { return taskId; }
+    public void setTaskId(Long taskId) { this.taskId = taskId; }
 
-    public Date getCompleteTime() {
-        return completeTime;
-    }
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
 
-    public void setCompleteTime(Date completeTime) {
-        this.completeTime = completeTime;
-    }
+    public Long getGroupId() { return groupId; }
+    public void setGroupId(Long groupId) { this.groupId = groupId; }
 
-    public JsonNode getExtInfo() {
-        return extInfo;
-    }
+    public LocalDateTime getCompleteTime() { return completeTime; }
+    public void setCompleteTime(LocalDateTime completeTime) { this.completeTime = completeTime; }
 
-    public void setExtInfo(JsonNode extInfo) {
-        this.extInfo = extInfo;
-    }
+    public String getExtra() { return extra; }
+    public void setExtra(String extra) { this.extra = extra; }
 
-    public Integer getDeleteFlag() {
-        return deleteFlag;
-    }
-
-    public void setDeleteFlag(Integer deleteFlag) {
-        this.deleteFlag = deleteFlag;
-    }
+    public Integer getDeleteFlag() { return deleteFlag; }
+    public void setDeleteFlag(Integer deleteFlag) { this.deleteFlag = deleteFlag; }
 
     @Override
     public String toString() {
@@ -118,9 +68,8 @@ public class CheckinRecord {
                 ", taskId=" + taskId +
                 ", userId=" + userId +
                 ", groupId=" + groupId +
-                ", completeStatus=" + completeStatus +
                 ", completeTime=" + completeTime +
-                ", extInfo=" + extInfo +
+                ", extra='" + extra + '\'' +
                 ", deleteFlag=" + deleteFlag +
                 '}';
     }

@@ -160,7 +160,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         List<User> users = userService.getUsersByIds(userIds);
         users.forEach(user -> {
             if (user.getNickname() == null ||user.getNickname().isBlank()){
-                user.setNickname("还没昵称");
+                user.setNickname("默认");
             }
         });
 

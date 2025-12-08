@@ -1,4 +1,3 @@
-
 CREATE TABLE schedule_item
 (
     id               BIGINT AUTO_INCREMENT COMMENT 'ID'
@@ -16,7 +15,7 @@ CREATE TABLE schedule_item
     user_id          BIGINT       NOT NULL COMMENT '用户ID',
     group_id         BIGINT       NOT NULL COMMENT '组ID',
     -- 新增的列
-    extra            TEXT         NULL COMMENT '扩展参数', -- 使用TEXT类型更适合存储可能较长的JSON或其他格式的扩展数据
+    extra            TEXT         NULL COMMENT '扩展参数',     -- 使用TEXT类型更适合存储可能较长的JSON或其他格式的扩展数据
     label            VARCHAR(256) NULL COMMENT '标签',
     create_by        BIGINT       NOT NULL COMMENT '创建人ID',
     update_by        BIGINT       NOT NULL COMMENT '最后更新人ID',
@@ -24,8 +23,7 @@ CREATE TABLE schedule_item
     update_time      DATETIME     NOT NULL COMMENT '最后更新时间',
     -- 索引
     INDEX schedule_item_idx (group_id, user_id)
-) COMMENT='日程事项表';
-
+) COMMENT ='日程事项表';
 
 
 
@@ -62,9 +60,9 @@ create table fun_group
 (
     `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户唯一ID',
     group_name    VARCHAR(64)     null,
-    group_desc     VARCHAR(128)    null,
-    type tinyint(4) default 0,
-   `create_time` DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    group_desc    VARCHAR(128)    null,
+    type          tinyint(4)               default 0,
+    `create_time` DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     creator       bigint UNSIGNED not null,
     PRIMARY KEY (`id`),
     KEY `idx_creator` (`creator`) COMMENT '普通索引：创建者'
@@ -96,54 +94,66 @@ create table checkin_record
     task_id         bigint UNSIGNED  not null,
     user_id         bigint UNSIGNED  not null,
     group_id        bigint UNSIGNED  not null,
-    complete_status TINYINT          not null,
     `complete_time` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `ext_info`      JSON                      DEFAULT NULL COMMENT '扩展信息（JSON格式，存储灵活字段）',
+    extra           TEXT             NULL COMMENT '扩展参数', -- 使用TEXT类型更适合存储可能较长的JSON或其他格式的扩展数据
     `delete_flag`   TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-未删除，1-已删除',
     PRIMARY KEY (`id`),
-    index idx_group_user (group_id, user_id)
-);
+    INDEX `idx_group_user` (`group_id`, `user_id`),
+    INDEX `idx_task_id` (`task_id`),                          -- 根据 task_id 查询需求添加
+    INDEX `idx_complete_time` (`complete_time`)               -- 根据时间范围查询需求添加
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='任务打卡记录表';;
 create table score_flow
 (
     `id`          BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '用户唯一ID',
+    `flow_type`   TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '流水类型：0-入账，1-出账',
     score         int              not null,
+    remain_score  int              not null COMMENT '剩余积分',
     user_id       bigint UNSIGNED  not null,
     group_id      bigint UNSIGNED  not null,
     event_name    varchar(128)     not null,
+    label         VARCHAR(256)     NULL COMMENT '标签',
     `create_time` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `ext_info`    JSON                      DEFAULT NULL COMMENT '扩展信息（JSON格式，存储灵活字段）',
+    extra         TEXT             NULL COMMENT '扩展参数', -- 使用TEXT类型更适合存储可能较长的JSON或其他格式的扩展数据
     operator      bigint UNSIGNED  not null,
     `delete_flag` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-未删除，1-已删除',
     PRIMARY KEY (`id`),
-    index idx_group_user (group_id, user_id)
-);
+    INDEX `idx_group_user` (`group_id`, `user_id`, `create_time`),
+    INDEX `idx_create_time` (`create_time`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='积分流水表';
 
 
-CREATE TABLE `t_session_key` (
-                                 `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-                                 `wx_id` varchar(64) NOT NULL COMMENT '小程序ID（唯一标识）',
-                                 `open_id` varchar(64) NOT NULL COMMENT '微信用户openId（唯一标识）',
-                                 `session_key` varchar(128) NOT NULL COMMENT '微信code2session返回的sessionKey',
-                                 `expire_time` datetime NOT NULL COMMENT '过期时间（72小时，与微信一致）',
-                                 `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                                 `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-                                 PRIMARY KEY (`id`),
-                                 UNIQUE KEY `uk_open_id` (wx_id,`open_id`) COMMENT 'openId唯一索引（避免重复存储）',
-                                 KEY `idx_expire_time` (`expire_time`) COMMENT '过期时间索引（优化清理效率）'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信sessionKey存储表（集群共享）';
+CREATE TABLE `t_session_key`
+(
+    `id`          bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `wx_id`       varchar(64)  NOT NULL COMMENT '小程序ID（唯一标识）',
+    `open_id`     varchar(64)  NOT NULL COMMENT '微信用户openId（唯一标识）',
+    `session_key` varchar(128) NOT NULL COMMENT '微信code2session返回的sessionKey',
+    `expire_time` datetime     NOT NULL COMMENT '过期时间（72小时，与微信一致）',
+    `create_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_open_id` (wx_id, `open_id`) COMMENT 'openId唯一索引（避免重复存储）',
+    KEY `idx_expire_time` (`expire_time`) COMMENT '过期时间索引（优化清理效率）'
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT ='微信sessionKey存储表（集群共享）';
 
 
 
-CREATE TABLE `share_record` (
-                                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-                                `token` VARCHAR(64) NOT NULL COMMENT '唯一分享令牌（如UUID）',
-                                `scene_code` VARCHAR(64) NOT NULL COMMENT '分享场景',
-                                `content` TEXT NOT NULL COMMENT '分享内容（JSON格式字符串）',
-                                `creator_id` bigint UNSIGNED  not null COMMENT '分享者ID（如用户ID）',
-                                `expires_at` DATETIME NOT NULL COMMENT '过期时间',
-                                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                                PRIMARY KEY (`id`),
-                                UNIQUE KEY `uk_token` (`token`),
-                                KEY `idx_creator_id` (`creator_id`),
-                                KEY `idx_expires_at` (`expires_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='分享记录表';
+CREATE TABLE `share_record`
+(
+    `id`         BIGINT          NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `token`      VARCHAR(64)     NOT NULL COMMENT '唯一分享令牌（如UUID）',
+    `scene_code` VARCHAR(64)     NOT NULL COMMENT '分享场景',
+    `content`    TEXT            NOT NULL COMMENT '分享内容（JSON格式字符串）',
+    `creator_id` bigint UNSIGNED not null COMMENT '分享者ID（如用户ID）',
+    `expires_at` DATETIME        NOT NULL COMMENT '过期时间',
+    `created_at` DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_token` (`token`),
+    KEY `idx_creator_id` (`creator_id`),
+    KEY `idx_expires_at` (`expires_at`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci COMMENT ='分享记录表';

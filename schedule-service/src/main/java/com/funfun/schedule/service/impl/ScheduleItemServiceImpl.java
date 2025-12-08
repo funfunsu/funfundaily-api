@@ -3,6 +3,7 @@ package com.funfun.schedule.service.impl;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.mapper.ScheduleItemMapper;
 import com.funfun.schedule.repository.ScheduleItemRepository;
 import com.funfun.schedule.service.ScheduleItemService;
@@ -53,12 +54,6 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         }
         return null;
     }
-
-    @Override
-    public List<ScheduleItem> getAllScheduleItems() {
-        return scheduleItemRepository.findAll();
-    }
-
     @Override
     public ScheduleItem updateScheduleItem(Long id, ScheduleItem scheduleItem) {
         Optional<ScheduleItem> existingItem = scheduleItemRepository.findById(id);
@@ -135,17 +130,30 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         scheduleItemRepository.deleteAllById(ids);
     }
 
+    private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,String itemType){
+        List<ScheduleItem> allScheduleItems = null;
+        if (userId != null) {
+            allScheduleItems = scheduleItemRepository.findByGroupIdAndUserId(groupId, userId);
+        }else{
+            allScheduleItems = scheduleItemRepository.findByGroupId(groupId);
+        }
+        return  scheduleItemMapper.toDTOList(allScheduleItems.stream().filter(scheduleItemDTO -> {return ScheduleItemType.schedule.name().equals(scheduleItemDTO.getItemType());}).collect(Collectors.toList()));
+    }
+
+    @Override
+    public List<ScheduleListItemDTO> getTaskItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate) {
+        try {
+            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.task.name());
+            return transferToDateScheduleItems(fromDate,toDate,allScheduleItemDTOS);
+        } catch (ParseException e) {
+            throw new RuntimeException("Date format error: " + e.getMessage());
+        }
+    }
+
     @Override
     public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate) {
         try {
-            // 查询符合条件的所有日程项
-            List<ScheduleItem> allScheduleItems = null;
-            if (userId != null) {
-                allScheduleItems = scheduleItemRepository.findByGroupIdAndUserId(groupId, userId);
-            }else{
-                allScheduleItems = scheduleItemRepository.findByGroupId(groupId);
-            }
-            List<ScheduleItemDTO> allScheduleItemDTOS = scheduleItemMapper.toDTOList(allScheduleItems);
+            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.schedule.name());
             return transferToDateScheduleItems(fromDate,toDate,allScheduleItemDTOS);
         } catch (ParseException e) {
             throw new RuntimeException("Date format error: " + e.getMessage());

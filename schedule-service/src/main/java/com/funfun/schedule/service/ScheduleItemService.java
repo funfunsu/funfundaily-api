@@ -27,13 +27,6 @@ public interface ScheduleItemService {
      * @return 日程项对象（Optional包装）
      */
     ScheduleItemDTO getScheduleItemById(Long id);
-
-    /**
-     * 查询所有日程项
-     * @return 日程项列表
-     */
-    List<ScheduleItem> getAllScheduleItems();
-
     /**
      * 更新日程项
      * @param id 日程项ID
@@ -106,6 +99,7 @@ public interface ScheduleItemService {
      * @return 按日期分组的日程项Map
      */
     List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate);
+    List<ScheduleListItemDTO> getTaskItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate);
 
 
     List<ScheduleListItemDTO> transferToDateScheduleItems(String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException;
