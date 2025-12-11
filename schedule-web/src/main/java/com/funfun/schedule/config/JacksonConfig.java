@@ -1,53 +1,58 @@
 package com.funfun.schedule.config;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
-import com.funfun.schedule.entity.ScheduleItem;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary; // Import Primary annotation
+import org.springframework.context.annotation.Primary;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat; // Import SimpleDateFormat
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.ZoneId; // Import ZoneId for clarity
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
-import java.util.TimeZone; // Import TimeZone
+import java.util.TimeZone;
 
 /**
- * Jackson配置类，用于自定义序列化规则
- * 修改以支持 GMT+8 时区
+ * Jackson配置类，用于自定义序列化和反序列化规则
+ * 修改以支持 GMT+8 时区 和 yyyy-MM-dd'T'HH:mm:ss 格式
  */
 @Configuration
 public class JacksonConfig {
 
     /**
-     * 日期时间格式
+     * 日期时间格式 - 包含 'T' 分隔符
      */
-    private static final String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+    private static final String DATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss"; // <-- 修改这里
 
     /**
      * 目标时区 - GMT+8
      */
     private static final ZoneId TARGET_ZONE_ID = ZoneId.of("GMT+8");
     // 或者使用常量字符串 "GMT+8" 直接传入
+    private static final TimeZone TARGET_TIME_ZONE = TimeZone.getTimeZone(TARGET_ZONE_ID); // 缓存 TimeZone 对象
 
     @Bean
-    @Primary // Add @Primary to ensure this ObjectMapper is used by default
+    @Primary
     public ObjectMapper objectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
 
         // --- 配置反序列化时的默认日期格式和时区 ---
-        // 这是关键：告诉 Jackson 如何解析没有 @JsonFormat 且无时区信息的日期字符串
+        // 这是关键：告诉 Jackson 如何解析没有 @JsonFormat 且符合 DATE_TIME_FORMAT 的日期字符串
+        // 必须使用单引号包裹 'T'
         SimpleDateFormat dateFormat = new SimpleDateFormat(DATE_TIME_FORMAT);
-        dateFormat.setTimeZone(TimeZone.getTimeZone(TARGET_ZONE_ID)); // 设置为 GMT+8
-        objectMapper.setDateFormat(dateFormat);
+        dateFormat.setTimeZone(TARGET_TIME_ZONE); // 设置为 GMT+8
+        objectMapper.setDateFormat(dateFormat); // <-- 这行是解决反序列化问题的关键
+        // 禁用 WRITE_DATES_AS_TIMESTAMPS，强制使用字符串格式而非毫秒数
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         // --- 配置结束 ---
 
 
@@ -59,16 +64,15 @@ public class JacksonConfig {
         simpleModule.addSerializer(Long.TYPE, ToStringSerializer.instance);
 
         // 注册Date类型序列化器，将Date转为指定格式的字符串 (使用 GMT+8)
-        simpleModule.addSerializer(Date.class, new DateToStringSerializer());
+        simpleModule.addSerializer(Date.class, new DateToStringSerializer()); // <-- 会使用下面修改后的序列化器
 
         // 注册ScheduleItem自定义序列化器，处理repeatKeys字段 (内部日期也使用 GMT+8)
-//        simpleModule.addSerializer(ScheduleItem.class, new ScheduleItemSerializer(objectMapper));
+        // simpleModule.addSerializer(ScheduleItem.class, new ScheduleItemSerializer(objectMapper));
 
         // 处理Java 8日期时间类型 (如果需要，也可以在这里设置时区)
         JavaTimeModule javaTimeModule = new JavaTimeModule();
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(DATE_TIME_FORMAT);
-        // 如果也需要为 Java 8 Time API 设置默认时区，可以考虑自定义序列化器
-        // 但对于反序列化，通常依赖 ObjectMapper 的时区设置或字段上的 @JsonFormat
+        // 为 LocalDateTime 设置相同的格式化器
         javaTimeModule.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(dateTimeFormatter));
 
         // 注册模块
@@ -82,7 +86,7 @@ public class JacksonConfig {
     }
 
     /**
-     * 自定义Date类型序列化器 - 修改为使用 GMT+8 时区
+     * 自定义Date类型序列化器 - 修改为使用 GMT+8 时区 和 yyyy-MM-dd'T'HH:mm:ss 格式
      */
     public static class DateToStringSerializer extends StdSerializer<Date> {
 
@@ -97,103 +101,9 @@ public class JacksonConfig {
                 String formattedDate = value.toInstant()
                         .atZone(TARGET_ZONE_ID) // Convert Instant to ZonedDateTime in GMT+8
                         .toLocalDateTime()
-                        .format(DateTimeFormatter.ofPattern(DATE_TIME_FORMAT));
+                        .format(DateTimeFormatter.ofPattern(DATE_TIME_FORMAT)); // <-- 使用更新后的格式
                 gen.writeString(formattedDate);
             }
         }
     }
-
-//    /**
-//     * ScheduleItem自定义序列化器，处理repeatKeys字段将JSON数组字符串转换为实际的JSON数组
-//     * 修改日期序列化部分以使用 GMT+8 时区
-//     */
-//    public static class ScheduleItemSerializer extends StdSerializer<ScheduleItem> {
-//
-//        private final ObjectMapper objectMapper;
-//
-//        public ScheduleItemSerializer(ObjectMapper objectMapper) {
-//            super(ScheduleItem.class);
-//            this.objectMapper = objectMapper;
-//        }
-//
-//        @Override
-//        public void serialize(ScheduleItem value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-//            gen.writeStartObject();
-//
-//            // 序列化其他字段
-//            gen.writeStringField("id", String.valueOf(value.getId()));
-//            gen.writeStringField("itemTitle", value.getItemTitle());
-//            gen.writeStringField("itemDesc", value.getItemDesc());
-//            gen.writeStringField("location", value.getLocation());
-//            gen.writeStringField("repeatType", value.getRepeatType());
-//
-//            // 处理repeatKeys字段，将JSON数组字符串转换为实际的JSON数组
-//            if (value.getRepeatKeys() != null && !value.getRepeatKeys().isEmpty()) {
-//                try {
-//                    JsonNode node = objectMapper.readTree(value.getRepeatKeys());
-//                    gen.writeFieldName("repeatKeys");
-//                    gen.writeTree(node);
-//                } catch (Exception e) {
-//                    // 如果解析失败，仍然按字符串处理
-//                    gen.writeStringField("repeatKeys", value.getRepeatKeys());
-//                }
-//            } else {
-//                gen.writeNullField("repeatKeys");
-//            }
-//
-//            // --- 修改日期序列化以使用 GMT+8 时区 ---
-//            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE_TIME_FORMAT);
-//
-//            if (value.getRepeatStartDay() != null) {
-//                String formattedDate = value.getRepeatStartDay().toInstant()
-//                        .atZone(TARGET_ZONE_ID)
-//                        .toLocalDateTime()
-//                        .format(formatter);
-//                gen.writeStringField("repeatStartDay", formattedDate);
-//            } else {
-//                gen.writeNullField("repeatStartDay");
-//            }
-//
-//            if (value.getRepeatEndDay() != null) {
-//                String formattedDate = value.getRepeatEndDay().toInstant()
-//                        .atZone(TARGET_ZONE_ID)
-//                        .toLocalDateTime()
-//                        .format(formatter);
-//                gen.writeStringField("repeatEndDay", formattedDate);
-//            } else {
-//                gen.writeNullField("repeatEndDay");
-//            }
-//            // --- 修改结束 ---
-//
-//            gen.writeStringField("itemType", value.getItemType());
-//
-//            // --- 修改 startTime/endTime 序列化以使用 GMT+8 时区 ---
-//            if (value.getStartTime() != null) {
-//                String formattedDate = value.getStartTime().toInstant()
-//                        .atZone(TARGET_ZONE_ID)
-//                        .toLocalDateTime()
-//                        .format(formatter);
-//                gen.writeStringField("startTime", formattedDate);
-//            } else {
-//                gen.writeNullField("startTime");
-//            }
-//
-//            if (value.getEndTime() != null) {
-//                String formattedDate = value.getEndTime().toInstant()
-//                        .atZone(TARGET_ZONE_ID)
-//                        .toLocalDateTime()
-//                        .format(formatter);
-//                gen.writeStringField("endTime", formattedDate);
-//            } else {
-//                gen.writeNullField("endTime");
-//            }
-//            // --- 修改结束 ---
-//
-//
-//            gen.writeStringField("userId", String.valueOf(value.getUserId()));
-//            gen.writeStringField("groupId", String.valueOf(value.getGroupId()));
-//
-//            gen.writeEndObject();
-//        }
-//    }
 }

@@ -53,9 +53,9 @@ public class GroupMemberController {
     /**
      * 根据ID查询群组成员
      */
-    @GetMapping("/{id}")
-    public CommonResponse<GroupMember> getGroupMemberById(@PathVariable Long id) {
-        GroupMember member = groupMemberService.getGroupMemberById(id);
+    @GetMapping("/get")
+    public CommonResponse<GroupMember> getGroupMemberById(@RequestParam String groupId,@RequestParam String userId) {
+        GroupMember member = groupMemberService.getGroupMemberByGroupIdAndUserId(Long.valueOf(groupId),Long.valueOf(userId));
         return CommonResponse.success(member);
     }
 

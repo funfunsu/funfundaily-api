@@ -17,8 +17,8 @@ public class ScoreFlow {
     @Column(name = "score", nullable = false)
     private Integer score;
 
-    @Column(name = "remain_score", nullable = false)
-    private Integer remainScore; // 流水发生后的余额快照
+    @Column(name = "balance", nullable = false)
+    private Integer balance; // 流水发生后的余额快照
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
@@ -50,7 +50,7 @@ public class ScoreFlow {
     public ScoreFlow(Integer flowType, Integer score, Integer remainScore, Long userId, Long groupId, String eventName, String label, Long operator) {
         this.flowType = flowType;
         this.score = score;
-        this.remainScore = remainScore;
+        this.balance = remainScore;
         this.userId = userId;
         this.groupId = groupId;
         this.eventName = eventName;
@@ -59,6 +59,14 @@ public class ScoreFlow {
         this.createTime = LocalDateTime.now();
     }
 
+
+    public Integer getBalance() {
+        return balance;
+    }
+
+    public void setBalance(Integer balance) {
+        this.balance = balance;
+    }
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -69,9 +77,6 @@ public class ScoreFlow {
 
     public Integer getScore() { return score; }
     public void setScore(Integer score) { this.score = score; }
-
-    public Integer getRemainScore() { return remainScore; }
-    public void setRemainScore(Integer remainScore) { this.remainScore = remainScore; }
 
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
@@ -103,7 +108,7 @@ public class ScoreFlow {
                 "id=" + id +
                 ", flowType=" + flowType +
                 ", score=" + score +
-                ", remainScore=" + remainScore +
+                ", balance=" + balance +
                 ", userId=" + userId +
                 ", groupId=" + groupId +
                 ", eventName='" + eventName + '\'' +

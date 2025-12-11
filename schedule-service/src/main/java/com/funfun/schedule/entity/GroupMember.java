@@ -38,6 +38,9 @@ public class GroupMember {
     @Column(name = "removed_id")
     private Long removedId; // 移除者ID
 
+
+    private int score;
+
     // 构造方法
     public GroupMember() {
         this.deleteFlag = 0;
@@ -116,6 +119,14 @@ public class GroupMember {
 
     public void setRemovedId(Long removedId) {
         this.removedId = removedId;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
     }
 
     @Override

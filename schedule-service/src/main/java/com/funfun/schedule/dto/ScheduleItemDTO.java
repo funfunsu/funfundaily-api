@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 日程项DTO（数据传输对象）
@@ -62,15 +63,22 @@ public class ScheduleItemDTO {
      */
     private String itemType;
 
+
+    /**
+     * 日程类型：meeting（会议）、task（任务）等
+     */
+    private String label;
+
     /**
      * 开始时间
      */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date startTime;
 
     /**
      * 结束时间
      */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date endTime;
+
+
+    private Map<String,Object> extra;
 }

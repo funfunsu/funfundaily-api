@@ -2,9 +2,8 @@ package com.funfun.schedule.service;
 
 import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.GroupMember;
-import java.util.Date;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * GroupMemberService接口，定义群组成员相关的业务逻辑方法
@@ -104,4 +103,13 @@ public interface GroupMemberService {
      * @return 包含用户昵称的群组成员列表
      */
     List<UserInfoDTO> getGroupMembersWithUserInfo(Long groupId);
+
+    /**
+     * 更新用户积分
+     * @param groupId
+     * @param userId
+     * @param newBalance
+     */
+    void updateMemberScore(Long groupId, Long userId, int newBalance);
+    int getMemberScore(Long groupId, Long userId);
 }

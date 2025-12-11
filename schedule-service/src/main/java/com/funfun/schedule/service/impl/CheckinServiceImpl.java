@@ -1,7 +1,9 @@
 package com.funfun.schedule.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper; // For handling extra JSON data if needed
+import com.alibaba.fastjson2.JSON;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.funfun.schedule.dto.CheckinRecordDTO;
+import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.entity.CheckinRecord;
 import com.funfun.schedule.entity.ScoreFlow;
 import com.funfun.schedule.exception.CommonException;
@@ -9,14 +11,19 @@ import com.funfun.schedule.mapper.CheckinRecordMapper;
 import com.funfun.schedule.repository.CheckinRecordRepository;
 import com.funfun.schedule.repository.ScoreFlowRepository;
 import com.funfun.schedule.service.CheckinService;
-import javax.transaction.Transactional;
+import com.funfun.schedule.service.GroupMemberService;
+import com.funfun.schedule.service.ScheduleItemService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class CheckinServiceImpl implements CheckinService {
@@ -27,13 +34,27 @@ public class CheckinServiceImpl implements CheckinService {
     private CheckinRecordRepository checkinRecordRepository;
 
     @Autowired
+    private ScheduleItemService scheduleItemService;
+
+    @Autowired
+    private GroupMemberService groupMemberService;
+
+    @Autowired
     private ScoreFlowRepository scoreFlowRepository;
 
     @Autowired
     private CheckinRecordMapper checkinRecordMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper; // 如果需要处理 extra 字段为 JSON
+    private static final String scoreKey = "score";
+
+
+    private Integer getScore(Map<String,Object> extraMap){
+        if (extraMap == null || extraMap.get(scoreKey) == null){
+            return 0;
+        }
+        String scoreStr = (String)extraMap.get(scoreKey);
+        return Integer.valueOf(scoreStr) ;
+    }
 
     @Override
     @Transactional // 确保打卡和积分记录在同一事务中
@@ -43,6 +64,9 @@ public class CheckinServiceImpl implements CheckinService {
         Long taskId = requestDto.getTaskId();
         Long groupId = requestDto.getGroupId();
         Long operatorId = requestDto.getOperatorId(); // 操作人，通常是用户自己
+
+        ScheduleItemDTO scheduleItemDTO = scheduleItemService.getScheduleItemById(taskId);
+        requestDto.setExtra(requestDto.getExtra());
 
         // --- 1. 前置校验 (简化版) ---
         // 在实际应用中，你应该在这里调用 TaskService, UserService, GroupService 来确认
@@ -61,9 +85,9 @@ public class CheckinServiceImpl implements CheckinService {
             logger.warn("User {} has already checked in for task {} in group {}", userId, taskId, groupId);
             CommonException.DATA_DUPLICATE.throwsError("已经为任务打过卡了");
         }
-
         // --- 2. 创建打卡记录 ---
         CheckinRecord checkinRecord = checkinRecordMapper.toEntity(requestDto);
+        checkinRecord.setCompleteTime(LocalDateTime.now());
         // 如果需要记录额外信息，可以设置 extra 字段
         // checkinRecord.setExtra(requestDto.getExtraInfo()); // 假设 requestDto 有这个字段
 
@@ -72,15 +96,14 @@ public class CheckinServiceImpl implements CheckinService {
 
         // --- 3. 计算积分 (示例) ---
         // Integer earnedScore = scoreCalculator.calculateForCheckin(taskId, userId); // 假设有这样的方法
-        Integer earnedScore = 10; // 示例固定积分
-        String eventName = "TASK_CHECKIN";
-        String label = "完成任务打卡";
+        Integer earnedScore = getScore(scheduleItemDTO.getExtra()); // 示例固定积分
+        String eventName = scheduleItemDTO.getItemTitle();
+        String label = "complete_task";
 
         // --- 4. 获取用户当前积分余额 (关键步骤!) ---
         // 这里简化处理，假设有一个方法或表来获取最新余额
-        // Integer currentBalance = getUserCurrentScore(userId, groupId); // 你需要实现这个逻辑
-        Integer currentBalance = 100; // 示例初始余额
-        Integer newBalance = currentBalance + earnedScore; // 计算新的余额
+        Integer currentBalance = groupMemberService.getMemberScore(groupId,userId); // 示例初始余额
+        int newBalance = currentBalance + earnedScore; // 计算新的余额
 
         // --- 5. 创建积分流水记录 ---
         ScoreFlow scoreFlow = new ScoreFlow(
@@ -98,7 +121,7 @@ public class CheckinServiceImpl implements CheckinService {
             Map<String, Object> extraData = new HashMap<>();
             extraData.put("checkinRecordId", savedRecord.getId());
             // extraData.put("otherInfo", requestDto.getSomeOtherInfo());
-            scoreFlow.setExtra(objectMapper.writeValueAsString(extraData));
+            scoreFlow.setExtra(JSON.toJSONString(extraData));
         } catch (Exception e) {
             logger.error("Failed to serialize extra data for score flow", e);
             // 根据策略决定是否继续或回滚
@@ -107,8 +130,7 @@ public class CheckinServiceImpl implements CheckinService {
         scoreFlowRepository.save(scoreFlow);
         logger.info("Score flow record created with ID: {} for checkin ID: {}", scoreFlow.getId(), savedRecord.getId());
 
-        // --- 6. 更新用户总积分 (如果积分余额存储在单独的表中) ---
-        // updateUserTotalScore(userId, groupId, newBalance); // 你需要实现这个逻辑
+        groupMemberService.updateMemberScore(groupId,userId, newBalance); // 你需要实现这个逻辑
 
         return savedRecord.getId();
 

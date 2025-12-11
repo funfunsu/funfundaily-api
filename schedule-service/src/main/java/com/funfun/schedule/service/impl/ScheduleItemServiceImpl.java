@@ -137,7 +137,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         }else{
             allScheduleItems = scheduleItemRepository.findByGroupId(groupId);
         }
-        return  scheduleItemMapper.toDTOList(allScheduleItems.stream().filter(scheduleItemDTO -> {return ScheduleItemType.schedule.name().equals(scheduleItemDTO.getItemType());}).collect(Collectors.toList()));
+        return  scheduleItemMapper.toDTOList(allScheduleItems.stream().filter(scheduleItemDTO -> {return ScheduleItemType.task.name().equals(scheduleItemDTO.getItemType());}).collect(Collectors.toList()));
     }
 
     @Override

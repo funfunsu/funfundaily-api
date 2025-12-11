@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  * 使用MapStruct简化对象之间的转换
  */
 @Mapper(componentModel = "spring")
-public interface ScheduleItemMapper {
+public interface ScheduleItemMapper extends BaseMapper{
 
     // 用于直接调用，也支持Spring自动注入
     ScheduleItemMapper INSTANCE = Mappers.getMapper(ScheduleItemMapper.class);
@@ -29,6 +29,7 @@ public interface ScheduleItemMapper {
      * @return 日程项DTO
      */
     @Mapping(source = "repeatKeys", target = "repeatKeys", qualifiedByName = "stringToList")
+    @Mapping(source = "extra", target = "extra", qualifiedByName = "stringToMap")
     ScheduleItemDTO toDTO(ScheduleItem scheduleItem);
 
     /**
@@ -39,6 +40,7 @@ public interface ScheduleItemMapper {
     @Mapping(source = "repeatKeys", target = "repeatKeys", qualifiedByName = "listToString")
     @Mapping(target = "userId",ignore = true)
     @Mapping(target = "groupId",ignore = true)
+    @Mapping(source = "extra", target = "extra", qualifiedByName = "mapToString")
     ScheduleItem toEntity(ScheduleItemDTO scheduleItemDTO);
 
     /**

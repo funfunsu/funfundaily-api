@@ -166,4 +166,20 @@ public class GroupMemberServiceImpl implements GroupMemberService {
 
         return userMapper.toSimpleList(users);
     }
+
+
+    @Override
+    public void updateMemberScore(Long groupId, Long userId, int newBalance) {
+        // 检查用户是否在群组中
+        GroupMember member = getGroupMemberByGroupIdAndUserId(groupId, userId);
+        member.setScore(newBalance);
+        member.setUpdateTime(new Date());
+        groupMemberRepository.save(member);
+    }
+
+    @Override
+    public int getMemberScore(Long groupId, Long userId) {
+        GroupMember member = getGroupMemberByGroupIdAndUserId(groupId, userId);
+        return member.getScore();
+    }
 }

@@ -108,7 +108,7 @@ create table score_flow
     `id`          BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '用户唯一ID',
     `flow_type`   TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '流水类型：0-入账，1-出账',
     score         int              not null,
-    remain_score  int              not null COMMENT '剩余积分',
+    balance  int              not null COMMENT '剩余积分',
     user_id       bigint UNSIGNED  not null,
     group_id      bigint UNSIGNED  not null,
     event_name    varchar(128)     not null,
