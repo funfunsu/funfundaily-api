@@ -130,20 +130,20 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         scheduleItemRepository.deleteAllById(ids);
     }
 
-    private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,String itemType){
+    private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,ScheduleItemType itemType){
         List<ScheduleItem> allScheduleItems = null;
         if (userId != null) {
             allScheduleItems = scheduleItemRepository.findByGroupIdAndUserId(groupId, userId);
         }else{
             allScheduleItems = scheduleItemRepository.findByGroupId(groupId);
         }
-        return  scheduleItemMapper.toDTOList(allScheduleItems.stream().filter(scheduleItemDTO -> {return ScheduleItemType.task.name().equals(scheduleItemDTO.getItemType());}).collect(Collectors.toList()));
+        return  scheduleItemMapper.toDTOList(allScheduleItems.stream().filter(scheduleItemDTO -> {return itemType.name().equals(scheduleItemDTO.getItemType());}).collect(Collectors.toList()));
     }
 
     @Override
     public List<ScheduleListItemDTO> getTaskItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate) {
         try {
-            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.task.name());
+            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.task);
             return transferToDateScheduleItems(fromDate,toDate,allScheduleItemDTOS);
         } catch (ParseException e) {
             throw new RuntimeException("Date format error: " + e.getMessage());
@@ -153,7 +153,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     @Override
     public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate) {
         try {
-            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.schedule.name());
+            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.schedule);
             return transferToDateScheduleItems(fromDate,toDate,allScheduleItemDTOS);
         } catch (ParseException e) {
             throw new RuntimeException("Date format error: " + e.getMessage());
