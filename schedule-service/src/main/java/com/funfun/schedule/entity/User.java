@@ -63,8 +63,8 @@ public class User {
     @Type(type = "json")
     private JsonNode extInfo; // 扩展信息
 
-    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
-    private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
+    @Column(name = "delete_flag", columnDefinition = "TINYINT")
+    private Boolean deleted = false;
 
     @Column(name = "inviter_id")
     private Long inviterId; // 邀请者ID
@@ -74,7 +74,7 @@ public class User {
         this.language = "zh_CN";
         this.registerTime = new Date();
         this.status = 1;
-        this.deleteFlag = 0;
+        this.deleted = false;
     }
 
     // Getter和Setter方法
@@ -206,12 +206,12 @@ public class User {
         this.extInfo = extInfo;
     }
 
-    public Integer getDeleteFlag() {
-        return deleteFlag;
+    public Boolean getDeleted() {
+        return deleted;
     }
 
-    public void setDeleteFlag(Integer deleteFlag) {
-        this.deleteFlag = deleteFlag;
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Long getInviterId() {
@@ -240,7 +240,7 @@ public class User {
                 ", lastLoginTime=" + lastLoginTime +
                 ", status=" + status +
                 ", userTag='" + userTag + '\'' +
-                ", deleteFlag=" + deleteFlag +
+                ", deleteFlag=" + deleted +
                 ", inviterId=" + inviterId +
                 '}';
     }

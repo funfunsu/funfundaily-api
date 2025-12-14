@@ -1,3 +1,4 @@
+use funfundaily_db;
 CREATE TABLE schedule_item
 (
     id               BIGINT AUTO_INCREMENT COMMENT 'ID'
@@ -55,7 +56,6 @@ CREATE TABLE `user`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='小程序用户表（兼容微信/支付宝等平台）';
 
-drop table fun_group;
 create table fun_group
 (
     `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户唯一ID',
@@ -68,14 +68,13 @@ create table fun_group
     KEY `idx_creator` (`creator`) COMMENT '普通索引：创建者'
 );
 
-drop table group_member;
 create table group_member
 (
     `id`          BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '用户唯一ID',
     group_id      bigint UNSIGNED  not null,
     user_id       bigint UNSIGNED  not null,
     role          VARCHAR(16)      null,
-    score         bigint           not null default 0,
+    score         int           not null default 0,
     `delete_flag` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-未删除，1-已删除',
     `create_time` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',

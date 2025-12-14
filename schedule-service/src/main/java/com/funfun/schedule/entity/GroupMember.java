@@ -23,8 +23,8 @@ public class GroupMember {
     @Column(name = "role", length = 16)
     private String role; // 角色
 
-    @Column(name = "delete_flag", nullable = false,columnDefinition = "TINYINT")
-    private Integer deleteFlag; // 逻辑删除：0-未删除，1-已删除
+    @Column(name = "delete_flag", columnDefinition = "TINYINT")
+    private Boolean deleted = false; // 逻辑删除：0-未删除，1-已删除
 
     @Column(name = "create_time", nullable = false, updatable = false)
     private Date createTime; // 创建时间
@@ -43,7 +43,7 @@ public class GroupMember {
 
     // 构造方法
     public GroupMember() {
-        this.deleteFlag = 0;
+        this.deleted = false;
         this.createTime = new Date();
         this.updateTime = new Date();
     }
@@ -81,12 +81,12 @@ public class GroupMember {
         this.role = role;
     }
 
-    public Integer getDeleteFlag() {
-        return deleteFlag;
+    public Boolean getDeleted() {
+        return deleted;
     }
 
-    public void setDeleteFlag(Integer deleteFlag) {
-        this.deleteFlag = deleteFlag;
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Date getCreateTime() {
@@ -136,7 +136,7 @@ public class GroupMember {
                 ", groupId=" + groupId +
                 ", userId=" + userId +
                 ", role='" + role + '\'' +
-                ", deleteFlag=" + deleteFlag +
+                ", deleteFlag=" + deleted +
                 ", createTime=" + createTime +
                 ", updateTime=" + updateTime +
                 ", inviterId=" + inviterId +

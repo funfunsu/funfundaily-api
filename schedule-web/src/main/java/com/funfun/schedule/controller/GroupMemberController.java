@@ -1,6 +1,7 @@
 package com.funfun.schedule.controller;
 
 import com.funfun.schedule.dto.AddMemberRequest;
+import com.funfun.schedule.dto.GroupMemberDTO;
 import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.GroupMember;
 import com.funfun.schedule.entity.User;
@@ -64,7 +65,7 @@ public class GroupMemberController {
      */
     @GetMapping("/list")
     public CommonResponse getGroupMembersByGroupId(@RequestParam String groupId) {
-        List<UserInfoDTO> members = groupMemberService.getGroupMembersWithUserInfo(Long.valueOf(groupId));
+        List<GroupMemberDTO> members = groupMemberService.getGroupMembersWithUserInfo(Long.valueOf(groupId));
         return CommonResponse.success(members);
     }
 

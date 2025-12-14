@@ -1,5 +1,6 @@
 package com.funfun.schedule.service;
 
+import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.User;
 import java.util.Date;
 import java.util.List;
@@ -64,7 +65,7 @@ public interface UserService {
      * @param user 用户对象
      * @return 更新后的用户对象
      */
-    User updateUser(User user);
+    UserInfoDTO updateUserBaseInfo(UserInfoDTO user);
 
     /**
      * 删除用户

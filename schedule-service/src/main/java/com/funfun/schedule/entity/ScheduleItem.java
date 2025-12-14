@@ -51,7 +51,7 @@ public class ScheduleItem {
     private Long groupId; // 组ID，非空
 
 
-    @Column(name = "extra")
+    @Column(name = "extra", columnDefinition = "TEXT")
     private String extra; // 扩展参数
     @Column(name = "label", length = 256)
     private String label; // 标签

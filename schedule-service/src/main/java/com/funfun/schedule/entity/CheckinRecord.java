@@ -26,8 +26,8 @@ public class CheckinRecord {
     @Column(name = "extra", columnDefinition = "TEXT")
     private String extra; // 可以考虑使用 @Convert(converter = JsonConverter.class) 转换为 Map 或 Object
 
-    @Column(name = "delete_flag", nullable = false)
-    private Integer deleteFlag = 0; // 逻辑删除标志
+    @Column(name = "delete_flag", columnDefinition = "TINYINT")
+    private Boolean deleted; // Hibernate 通常能很好地处理 Boolean 到 TINYINT 的映射
 
     // Constructors
     public CheckinRecord() {}
@@ -58,8 +58,14 @@ public class CheckinRecord {
     public String getExtra() { return extra; }
     public void setExtra(String extra) { this.extra = extra; }
 
-    public Integer getDeleteFlag() { return deleteFlag; }
-    public void setDeleteFlag(Integer deleteFlag) { this.deleteFlag = deleteFlag; }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
+    }
 
     @Override
     public String toString() {
@@ -70,7 +76,7 @@ public class CheckinRecord {
                 ", groupId=" + groupId +
                 ", completeTime=" + completeTime +
                 ", extra='" + extra + '\'' +
-                ", deleteFlag=" + deleteFlag +
+                ", deleteFlag=" + deleted +
                 '}';
     }
 }

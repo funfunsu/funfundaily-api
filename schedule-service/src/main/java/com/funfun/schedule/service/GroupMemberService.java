@@ -1,5 +1,6 @@
 package com.funfun.schedule.service;
 
+import com.funfun.schedule.dto.GroupMemberDTO;
 import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.GroupMember;
 
@@ -102,7 +103,7 @@ public interface GroupMemberService {
      * @param groupId 群组ID
      * @return 包含用户昵称的群组成员列表
      */
-    List<UserInfoDTO> getGroupMembersWithUserInfo(Long groupId);
+    List<GroupMemberDTO> getGroupMembersWithUserInfo(Long groupId);
 
     /**
      * 更新用户积分

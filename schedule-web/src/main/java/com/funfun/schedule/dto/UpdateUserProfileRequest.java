@@ -1,5 +1,6 @@
 package com.funfun.schedule.dto;
 
+import com.alibaba.fastjson2.JSONObject;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
@@ -20,4 +21,8 @@ public class UpdateUserProfileRequest {
 
     @NotBlank(message = "signature 不能为空")
     private String signature; // 签名（可选校验用）
+
+    private JSONObject userInfo;
+
+    private String errMsg;
 }

@@ -57,12 +57,6 @@ public interface ScoreFlowRepository extends JpaRepository<ScoreFlow, Long> {
      */
     List<ScoreFlow> findByOperator(Long operator);
 
-    /**
-     * 根据删除标志查询积分流水
-     * @param deleteFlag 删除标志
-     * @return 积分流水列表
-     */
-    List<ScoreFlow> findByDeleteFlag(Integer deleteFlag);
 
     /**
      * 批量查询积分流水

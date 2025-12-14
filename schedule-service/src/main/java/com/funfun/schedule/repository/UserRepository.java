@@ -72,12 +72,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     List<User> findByInviterId(Long inviterId);
 
-    /**
-     * 根据删除标志查询用户
-     * @param deleteFlag 删除标志
-     * @return 用户列表
-     */
-    List<User> findByDeleteFlag(Integer deleteFlag);
+
 
     /**
      * 根据用户ID列表批量查询用户

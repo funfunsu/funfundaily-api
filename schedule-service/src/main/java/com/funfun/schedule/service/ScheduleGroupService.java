@@ -17,6 +17,8 @@ public interface ScheduleGroupService {
      */
     Group createGroup(GroupDTO group);
     Group createAutoGroup(Long userId);
+    Group removeAutoGroup(Long userId);
+    Group getAutoGroup(Long userId);
 
     /**
      * 根据ID查询群组

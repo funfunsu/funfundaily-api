@@ -10,11 +10,11 @@ import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.repository.UserRepository;
 import com.funfun.schedule.service.SessionKeyService;
+import com.funfun.schedule.service.UserService;
 import com.funfun.schedule.util.WeChatDecryptUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import javax.servlet.http.HttpServletRequest;
 
 import javax.validation.Valid;
 import java.util.Optional;
@@ -33,43 +33,67 @@ public class UserController {
     private final WeChatDecryptUtil weChatDecryptUtil;
     private final WeChatConfig weChatConfig;
 
+    private final UserService userService;
+
     /**
      */
     @PostMapping("/update-profile")
-    public CommonResponse<Void> updateUserProfile(
-            @Valid @RequestBody UpdateUserProfileRequest request,
-            HttpServletRequest serverHttpRequest) { // WebFlux 原生请求对象，无需额外依赖
+    public CommonResponse<?> updateUserProfile(
+            @Valid @RequestBody UpdateUserProfileRequest request) { // WebFlux 原生请求对象，无需额外依赖
 
+        switch (request.getErrMsg()){
+            case "getUserProfile:ok":
+                return CommonResponse.success(updateUserBaseInfo(request.getUserInfo()));
+            default:;
+        }
+        return CommonResponse.success();
+    }
+    /**
+     */
+    @PostMapping("/update")
+    public CommonResponse<?> updateUserInfo(
+            @Valid @RequestBody UserInfoDTO userInfoDTO) {
+        userInfoDTO.setId(UserContext.getUserId());
+        return CommonResponse.success(userService.updateUserBaseInfo(userInfoDTO));
+    }
+
+    /**
+     * {
+     *     "openId": "OPENID",
+     *     "nickName": "NICKNAME",
+     *     "gender": GENDER,
+     *     "city": "CITY",
+     *     "province": "PROVINCE",
+     *     "country": "COUNTRY",
+     *     "avatarUrl": "AVATARURL",
+     *     "unionId": "UNIONID",
+     *     "watermark":
+     *     {
+     *         "appid":"APPID",
+     *         "timestamp":TIMESTAMP
+     *     }
+     * }
+     * @param userInfoJson
+     */
+    private UserInfoDTO updateUserBaseInfo(JSONObject userInfoJson){
         // 3. 查询本地用户，获取 openId
         Optional<User> userOpt = userRepository.findById(UserContext.getUserId());
         if (!userOpt.isPresent()) {
             CommonException.USER_NOT_EXIST.throwsError("");
         }
         User user = userOpt.get();
-        String openId = user.getOpenid();
-
-        // 4. 从 MySQL 查询有效的 sessionKey（逻辑不变）
-        String sessionKey = sessionKeyService.getValidSessionKey(weChatConfig.getAppid(),openId);
-        if (sessionKey == null) {
-            CommonException.LOGIN_INVALID.throwsError("sessionKey无效");
-        }
-
-        // 5. 解密 + 更新用户资料（逻辑不变）
-        JSONObject userInfoJson = weChatDecryptUtil.decrypt(
-                request.getEncryptedData(),
-                sessionKey,
-                request.getIv()
-        );
-        log.info("解密后的用户信息：{}", userInfoJson);
 
         String nickname = userInfoJson.getString("nickName");
         String avatarUrl = userInfoJson.getString("avatarUrl");
         user.setNickname(nickname);
         user.setAvatarUrl(avatarUrl);
+        user.setGender(userInfoJson.getInteger("gender"));
+        user.setProvince(userInfoJson.getString("province"));
+        user.setCity(userInfoJson.getString("city"));
+        user.setCountry(userInfoJson.getString("country"));
         userRepository.save(user);
-
         log.info("用户资料更新成功：userId={}, nickname={}", UserContext.getUserId(), nickname);
-        return CommonResponse.success();
+        return userInfoDTO(user);
     }
 
     @GetMapping("/info")
@@ -83,16 +107,19 @@ public class UserController {
             CommonException.USER_NOT_EXIST.throwsError("");
         }
         User user = userOpt.get();
+        log.info("查询用户信息成功：userId={}", localUserId);
+        return CommonResponse.success(userInfoDTO(user));
+    }
+
+    private UserInfoDTO userInfoDTO(User user){
 
         // 4. 实体类转换为 DTO（隐藏敏感字段，按需返回）
         UserInfoDTO userInfoDTO = new UserInfoDTO();
         userInfoDTO.setId(user.getId()); // 本地 userId
-        userInfoDTO.setNickname(user.getNickname() != null ? user.getNickname() : "微信用户"); // 默认昵称
-        userInfoDTO.setAvatarUrl(user.getAvatarUrl() != null ? user.getAvatarUrl() : "默认头像URL"); // 默认头像
+        userInfoDTO.setNickname(user.getNickname()); // 默认昵称
+        userInfoDTO.setAvatarUrl(user.getAvatarUrl()); // 默认头像
         userInfoDTO.setCreateTime(user.getRegisterTime()); // 账号创建时间
-
-        log.info("查询用户信息成功：userId={}", localUserId);
-        return CommonResponse.success(userInfoDTO);
+        return userInfoDTO;
     }
 
 

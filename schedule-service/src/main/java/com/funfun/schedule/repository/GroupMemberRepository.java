@@ -44,12 +44,6 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
      */
     List<GroupMember> findByGroupIdAndRole(Long groupId, String role);
 
-    /**
-     * 根据删除标志查询群组成员
-     * @param deleteFlag 删除标志
-     * @return 群组成员列表
-     */
-    List<GroupMember> findByDeleteFlag(Integer deleteFlag);
 
     /**
      * 根据创建时间范围查询群组成员

@@ -20,6 +20,7 @@ public interface ScheduleGroupRepository extends JpaRepository<Group, Long> {
      * @return 群组列表
      */
     List<Group> findByCreator(Long creator);
+    List<Group> findByCreatorAndType(Long creator,int Type);
 
     List<Group> findByGroupNameContaining(String groupName);
 

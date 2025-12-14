@@ -11,7 +11,7 @@ public class ScoreFlow {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "flow_type", nullable = false)
+    @Column(name = "flow_type", nullable = false, columnDefinition = "TINYINT")
     private Integer flowType; // 0 - 入账, 1 - 出账
 
     @Column(name = "score", nullable = false)
@@ -41,8 +41,8 @@ public class ScoreFlow {
     @Column(name = "operator", nullable = false)
     private Long operator; // 操作人ID
 
-    @Column(name = "delete_flag", nullable = false)
-    private Integer deleteFlag = 0; // 逻辑删除标志
+    @Column(name = "delete_flag", columnDefinition = "TINYINT")
+    private Boolean deleted; // Hibernate 通常能很好地处理 Boolean 到 TINYINT 的映射    private Integer deleteFlag = 0; // 逻辑删除标志
 
     // Constructors
     public ScoreFlow() {}
@@ -99,8 +99,13 @@ public class ScoreFlow {
     public Long getOperator() { return operator; }
     public void setOperator(Long operator) { this.operator = operator; }
 
-    public Integer getDeleteFlag() { return deleteFlag; }
-    public void setDeleteFlag(Integer deleteFlag) { this.deleteFlag = deleteFlag; }
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
+    }
 
     @Override
     public String toString() {
@@ -116,7 +121,7 @@ public class ScoreFlow {
                 ", createTime=" + createTime +
                 ", extra='" + extra + '\'' +
                 ", operator=" + operator +
-                ", deleteFlag=" + deleteFlag +
+                ", deleteFlag=" + deleted +
                 '}';
     }
 }

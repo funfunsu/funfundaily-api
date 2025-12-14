@@ -48,7 +48,7 @@ public class ScoreServiceImpl implements ScoreService {
         // 查询用户在指定群组的积分流水，计算余额
         List<ScoreFlow> scoreFlows = scoreFlowRepository.findByGroupIdAndUserId(groupId, userId);
         return scoreFlows.stream()
-                .filter(flow -> flow.getDeleteFlag() == 0)
+                .filter(flow -> !flow.getDeleted())
                 .mapToInt(ScoreFlow::getScore)
                 .sum();
     }

@@ -3,17 +3,19 @@ package com.funfun.schedule.service.impl;
 import com.funfun.schedule.dto.GroupDTO;
 import com.funfun.schedule.entity.Group;
 import com.funfun.schedule.entity.GroupMember;
+import com.funfun.schedule.enums.GroupRole;
 import com.funfun.schedule.enums.GroupType;
 import com.funfun.schedule.mapper.GroupMapper;
 import com.funfun.schedule.repository.GroupMemberRepository;
 import com.funfun.schedule.repository.ScheduleGroupRepository;
-import com.funfun.schedule.service.GroupMemberService;
 import com.funfun.schedule.service.ScheduleGroupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -58,12 +60,30 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
 
     @Override
     public Group createAutoGroup(Long userId) {
-        GroupDTO groupDTO = new GroupDTO();
-        groupDTO.setCreator(userId);
-        groupDTO.setType(GroupType.Auto.ordinal());
-        groupDTO.setGroupName("我的空间");
-        groupDTO.setGroupDesc("自动创建");
-        return scheduleGroupRepository.save(groupMapper.toEntity(groupDTO));
+        Group group = new Group();
+        group.setCreator(userId);
+        group.setType(GroupType.Auto.ordinal());
+        group.setGroupName("我的空间");
+        group.setGroupDesc("自动创建");
+
+        return scheduleGroupRepository.save(group);
+    }
+
+    @Override
+    public Group removeAutoGroup(Long userId) {
+        Group group = getAutoGroup(userId);
+        if (group == null){
+            return null;
+        }
+        scheduleGroupRepository.deleteById(group.getId());
+        return group;
+
+    }
+
+    @Override
+    public Group getAutoGroup(Long userId) {
+        List<Group> list = scheduleGroupRepository.findByCreatorAndType(userId,GroupType.Auto.ordinal());
+        return list == null || list.isEmpty() ? null : list.get(0);
     }
 
     @Override
@@ -72,12 +92,25 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
         return optionalGroup.orElseThrow(() -> new RuntimeException("群组不存在"));
     }
 
+    private Group initUserGroup(Long userId){
+        Group group = createAutoGroup(userId);
+
+        GroupMember groupMember = new GroupMember();
+        groupMember.setRole(GroupRole.Admin.name());
+        groupMember.setUserId(userId);
+        groupMember.setGroupId(group.getId());
+        groupMemberRepository.save(groupMember);
+        return group;
+    }
+
 
     @Override
     public List<Group> getGroupList(Long userId) {
         List<GroupMember> groupMemberList = groupMemberRepository.findByUserId(userId);
         if (groupMemberList == null || groupMemberList.isEmpty()){
-            return Collections.EMPTY_LIST;
+            //初始化用户群组
+            return List.of(initUserGroup(userId));
+
         }
         List<Long> groupIds = groupMemberList.stream().map(GroupMember::getGroupId).collect(Collectors.toList());
         return scheduleGroupRepository.findByIdIn(groupIds);

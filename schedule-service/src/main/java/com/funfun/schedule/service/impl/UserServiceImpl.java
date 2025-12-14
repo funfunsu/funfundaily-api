@@ -1,11 +1,13 @@
 package com.funfun.schedule.service.impl;
 
 import com.funfun.schedule.context.UserContext;
+import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.Group;
 import com.funfun.schedule.entity.GroupMember;
 import com.funfun.schedule.entity.User;
 import com.funfun.schedule.enums.GroupRole;
 import com.funfun.schedule.enums.GroupType;
+import com.funfun.schedule.mapper.UserMapper;
 import com.funfun.schedule.repository.GroupMemberRepository;
 import com.funfun.schedule.repository.ScheduleGroupRepository;
 import com.funfun.schedule.repository.UserRepository;
@@ -35,6 +37,10 @@ public class UserServiceImpl implements UserService {
     private GroupMemberRepository groupMemberRepository;
 
 
+    @Autowired
+    private UserMapper userMapper;
+
+
     @Override
     @Transactional
     public User createUser(User user) {
@@ -49,9 +55,6 @@ public class UserServiceImpl implements UserService {
         // 设置默认值
         if (user.getStatus() == null) {
             user.setStatus(1); // 默认为正常状态
-        }
-        if (user.getDeleteFlag() == null) {
-            user.setDeleteFlag(0); // 默认为未删除
         }
         if (user.getLanguage() == null) {
             user.setLanguage("zh_CN"); // 默认为中文简体
@@ -106,24 +109,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public User updateUser(User user) {
+    public UserInfoDTO updateUserBaseInfo(UserInfoDTO user) {
         // 检查用户是否存在
         User existingUser = getUserById(user.getId());
         // 更新用户信息
         existingUser.setNickname(user.getNickname());
         existingUser.setAvatarUrl(user.getAvatarUrl());
-        existingUser.setGender(user.getGender());
-        existingUser.setPhone(user.getPhone());
-        existingUser.setCountry(user.getCountry());
-        existingUser.setProvince(user.getProvince());
-        existingUser.setCity(user.getCity());
-        existingUser.setLanguage(user.getLanguage());
-        existingUser.setLastLoginTime(user.getLastLoginTime());
-        existingUser.setStatus(user.getStatus());
-        existingUser.setUserTag(user.getUserTag());
-        existingUser.setExtInfo(user.getExtInfo());
-        existingUser.setInviterId(user.getInviterId());
-        return userRepository.save(existingUser);
+        existingUser =   userRepository.save(existingUser);
+        return userMapper.toSimpleDTO(existingUser);
     }
 
     @Override
@@ -131,7 +124,7 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(Long id) {
         // 逻辑删除用户
         User user = getUserById(id);
-        user.setDeleteFlag(1);
+        user.setDeleted(true);
         userRepository.save(user);
     }
 
@@ -141,7 +134,7 @@ public class UserServiceImpl implements UserService {
         // 批量逻辑删除用户
         List<User> users = userRepository.findByIdIn(ids);
         for (User user : users) {
-            user.setDeleteFlag(1);
+            user.setDeleted(true);
         }
         userRepository.saveAll(users);
     }
@@ -177,25 +170,6 @@ public class UserServiceImpl implements UserService {
                     // newUser.setAvatarUrl("默认头像地址");
 
                     User savedUser = userRepository.save(newUser);
-
-                    Group group = new Group();
-                    group.setCreator(savedUser.getId());
-                    group.setType(GroupType.Auto.ordinal());
-                    group.setGroupName("我的空间");
-                    group.setGroupDesc("自动创建");
-                    Group group1 = scheduleGroupRepository.save(group);
-
-
-                    GroupMember groupMember = new GroupMember();
-                    groupMember.setRole(GroupRole.Admin.name());
-                    groupMember.setUserId(savedUser.getId());
-                    groupMember.setGroupId(group1.getId());
-                    groupMemberRepository.save(groupMember);
-
-                    log.info("新用户自动注册成功：openId={}, 本地userId={}", openId, savedUser.getId());
-
-
-
                     return savedUser.getId();
                 });
     }
