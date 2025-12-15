@@ -1,5 +1,7 @@
 package com.funfun.schedule.entity;
 
+import org.hibernate.annotations.Where;
+
 import javax.persistence.*;
 import java.util.Date;
 
@@ -8,6 +10,7 @@ import java.util.Date;
  */
 @Entity
 @Table(name = "group_member")
+@Where(clause = "delete_flag = false")
 public class GroupMember {
 
     @Id

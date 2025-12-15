@@ -96,7 +96,7 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
         Group group = createAutoGroup(userId);
 
         GroupMember groupMember = new GroupMember();
-        groupMember.setRole(GroupRole.Admin.name());
+        groupMember.setRole(GroupRole.Creator.name());
         groupMember.setUserId(userId);
         groupMember.setGroupId(group.getId());
         groupMemberRepository.save(groupMember);

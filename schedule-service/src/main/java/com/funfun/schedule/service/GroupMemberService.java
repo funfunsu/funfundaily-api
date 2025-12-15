@@ -63,10 +63,10 @@ public interface GroupMemberService {
 
     /**
      * 移除群组成员（逻辑删除）
-     * @param id 群组成员ID
+     * @param groupId 群组成员ID
      * @param removedId 移除者ID
      */
-    void removeGroupMember(Long id, Long removedId);
+    void removeGroupMember(Long groupId, Long removedId);
 
     /**
      * 批量移除群组成员

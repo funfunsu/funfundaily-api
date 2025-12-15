@@ -17,6 +17,7 @@ public interface GroupMemberMapper extends BaseMapper{
      * @return 群组DTO
      */
     GroupMemberDTO toDTO(GroupMember user);
+    GroupMember toEntity(GroupMemberDTO user);
     List<GroupMemberDTO>toDTOList(List<GroupMember> user);
 
 

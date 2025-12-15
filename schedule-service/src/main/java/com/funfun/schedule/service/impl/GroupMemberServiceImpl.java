@@ -115,7 +115,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     @Transactional
     public GroupMember updateGroupMember(GroupMember groupMember) {
         // 检查群组成员是否存在
-        GroupMember existingMember = getGroupMemberById(groupMember.getId());
+        GroupMember existingMember = getGroupMemberByGroupIdAndUserId(groupMember.getGroupId(),groupMember.getUserId());
         // 更新信息
         existingMember.setRole(groupMember.getRole());
         existingMember.setUpdateTime(new Date());
@@ -145,8 +145,12 @@ public class GroupMemberServiceImpl implements GroupMemberService {
 
     @Override
     @Transactional
-    public void removeGroupMember(Long id, Long removedId) {
-        doRemoveGroupMember(id,removedId);
+    public void removeGroupMember(Long groupId, Long removedId) {
+        GroupMember member = getGroupMemberByGroupIdAndUserId(groupId,removedId);
+        if (member == null){
+            return;
+        }
+        doRemoveGroupMember(member.getId(),removedId);
     }
 
     @Override

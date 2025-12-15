@@ -5,6 +5,8 @@ import com.funfun.schedule.dto.GroupMemberDTO;
 import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.GroupMember;
 import com.funfun.schedule.entity.User;
+import com.funfun.schedule.mapper.GroupMapper;
+import com.funfun.schedule.mapper.GroupMemberMapper;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.GroupMemberService;
 import com.funfun.schedule.service.UserService;
@@ -30,11 +32,15 @@ public class GroupMemberController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private GroupMemberMapper memberMapper;
+
     /**
      * 用户加入群组
      */
     @PostMapping("join")
-    public CommonResponse<GroupMember> joinGroup(@RequestBody GroupMember groupMember) {
+    public CommonResponse<GroupMember> joinGroup(@RequestBody GroupMemberDTO groupMemberDTO) {
+        GroupMember groupMember = memberMapper.toEntity(groupMemberDTO);
         GroupMember createdMember = groupMemberService.joinGroup(groupMember);
         return CommonResponse.success(createdMember);
     }
@@ -84,9 +90,12 @@ public class GroupMemberController {
     /**
      * 更新群组成员信息（如角色）
      */
-    @PutMapping("/{id}")
-    public CommonResponse<GroupMember> updateGroupMember(@PathVariable Long id, @RequestBody GroupMember groupMember) {
-        groupMember.setId(id);
+    @PutMapping("/update")
+    public CommonResponse<GroupMember> updateGroupMember(@RequestBody GroupMemberDTO groupMemberDTO) {
+        GroupMember groupMember = new GroupMember();
+        groupMember.setGroupId(groupMemberDTO.getGroupId());
+        groupMember.setUserId(groupMemberDTO.getUserId());
+        groupMember.setRole(groupMemberDTO.getRole());
         GroupMember updatedMember = groupMemberService.updateGroupMember(groupMember);
         return CommonResponse.success(updatedMember);
     }
@@ -105,9 +114,9 @@ public class GroupMemberController {
     /**
      * 移除群组成员
      */
-    @DeleteMapping("/{id}")
-    public CommonResponse<Void> removeGroupMember(@PathVariable Long id, @RequestParam Long removedId) {
-        groupMemberService.removeGroupMember(id, removedId);
+    @DeleteMapping("/{groupId}/{userId}")
+    public CommonResponse<Void> removeGroupMember(@PathVariable String groupId, @PathVariable String userId) {
+        groupMemberService.removeGroupMember(Long.valueOf(groupId), Long.valueOf(userId));
         return CommonResponse.success();
     }
 
