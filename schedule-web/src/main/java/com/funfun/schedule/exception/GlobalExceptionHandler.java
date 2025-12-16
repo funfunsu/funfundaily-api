@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
     /**
      * 处理所有未捕获的异常
      */
-    @ExceptionHandler(Exception.class)
+    @ExceptionHandler(Throwable.class)
     @ResponseBody
     public ResponseEntity<CommonResponse<Void>> handleException(Exception e) {
         // 记录异常日志
@@ -40,7 +40,7 @@ public class GlobalExceptionHandler {
     @ResponseBody
     public ResponseEntity<CommonResponse<Void>> handleBusinessException(MyException e) {
         // 业务异常不需要记录完整堆栈
-        System.err.println("BusinessException: " + e.getMessage());
+        log.error("BusinessException: " , e);
         
         // 创建统一业务异常响应
         CommonResponse<Void> response = CommonResponse.fail(e.getCode(), e.getMessage());

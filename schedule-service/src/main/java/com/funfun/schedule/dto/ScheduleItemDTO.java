@@ -49,13 +49,11 @@ public class ScheduleItemDTO {
     /**
      * 重复开始日期
      */
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private Date repeatStartDay;
 
     /**
      * 重复结束日期
      */
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private Date repeatEndDay;
 
     /**
@@ -72,13 +70,11 @@ public class ScheduleItemDTO {
     /**
      * 开始时间
      */
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private Date startTime;
 
     /**
      * 结束时间
      */
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private Date endTime;
 
 

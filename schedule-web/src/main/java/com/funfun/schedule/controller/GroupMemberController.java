@@ -90,7 +90,7 @@ public class GroupMemberController {
     /**
      * 更新群组成员信息（如角色）
      */
-    @PutMapping("/update")
+    @PostMapping("/update")
     public CommonResponse<GroupMember> updateGroupMember(@RequestBody GroupMemberDTO groupMemberDTO) {
         GroupMember groupMember = new GroupMember();
         groupMember.setGroupId(groupMemberDTO.getGroupId());

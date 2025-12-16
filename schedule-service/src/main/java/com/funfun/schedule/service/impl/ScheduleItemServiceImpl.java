@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -271,19 +273,14 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
      * 检查日期是否在开始和结束时间范围内
      */
     private boolean isDateWithinRange(Date startTime, Date endTime, Date date) {
-        try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String dateStr = dateFormat.format(date);
-            Date startOfDay = dateFormat.parse(dateStr);
-            Calendar calendar = Calendar.getInstance();
-            calendar.setTime(startOfDay);
-            calendar.add(Calendar.DAY_OF_MONTH, 1);
-            Date endOfDay = calendar.getTime();
-            
-            return !startTime.after(endOfDay) && !endTime.before(startOfDay);
-        } catch (ParseException e) {
+        // 1. 处理空值情况
+        if (startTime == null || endTime == null || date == null) {
             return false;
         }
+        LocalDate checkDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        Date startOfDay = Date.from(checkDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date endOfDay = Date.from(checkDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return startTime.before(endOfDay) && startTime.after(startOfDay) || endTime.before(endOfDay) && endTime.after(startOfDay);
     }
     
     /**

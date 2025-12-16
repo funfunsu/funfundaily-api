@@ -48,7 +48,7 @@ public class ScheduleItemController {
      * 创建日程项
      * @return 创建的日程项对象和HTTP状态码
      */
-    @PostMapping("/add")
+    @PostMapping("/save")
     public CommonResponse<Boolean> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
         Long userId = UserContext.getUserId();
         Long groupId = Long.valueOf(request.groupId);

@@ -27,7 +27,7 @@ public class CheckinRecord {
     private String extra; // 可以考虑使用 @Convert(converter = JsonConverter.class) 转换为 Map 或 Object
 
     @Column(name = "delete_flag", columnDefinition = "TINYINT")
-    private Boolean deleted; // Hibernate 通常能很好地处理 Boolean 到 TINYINT 的映射
+    private Boolean deleted = false; // Hibernate 通常能很好地处理 Boolean 到 TINYINT 的映射
 
     // Constructors
     public CheckinRecord() {}

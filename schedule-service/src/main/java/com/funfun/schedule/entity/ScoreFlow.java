@@ -42,7 +42,7 @@ public class ScoreFlow {
     private Long operator; // 操作人ID
 
     @Column(name = "delete_flag", columnDefinition = "TINYINT")
-    private Boolean deleted; // Hibernate 通常能很好地处理 Boolean 到 TINYINT 的映射    private Integer deleteFlag = 0; // 逻辑删除标志
+    private Boolean deleted = false; // Hibernate 通常能很好地处理 Boolean 到 TINYINT 的映射    private Integer deleteFlag = 0; // 逻辑删除标志
 
     // Constructors
     public ScoreFlow() {}
