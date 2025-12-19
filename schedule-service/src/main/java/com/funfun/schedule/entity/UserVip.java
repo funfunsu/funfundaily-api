@@ -23,7 +23,7 @@ public class UserVip {
     private Long userId;
 
     @Enumerated(EnumType.ORDINAL) // 或者 EnumType.STRING，根据你的存储偏好
-    @Column(name = "vip_type", nullable = false)
+    @Column(name = "vip_type", nullable = false,columnDefinition = "TINYINT")
     private VipType vipType; // 使用枚举
 
     @Column(name = "start_time", nullable = false)
