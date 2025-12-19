@@ -21,6 +21,9 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
      */
     List<GroupMember> findByGroupId(Long groupId);
 
+    long countByUserId(Long userId); // 新增方法
+    long countByGroupId(Long groupId); // 新增方法
+
     /**
      * 根据用户ID查询该用户加入的群组
      * @param userId 用户ID

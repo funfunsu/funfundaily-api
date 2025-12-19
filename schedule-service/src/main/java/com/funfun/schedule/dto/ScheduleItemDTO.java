@@ -77,6 +77,8 @@ public class ScheduleItemDTO {
      */
     private Date endTime;
 
+    private Long userId;
+
 
     private Map<String,Object> extra;
 }

@@ -1,13 +1,11 @@
 package com.funfun.schedule.dto.schedule;
 
 import com.funfun.schedule.dto.BaseGroupUserRequest;
-import com.funfun.schedule.dto.ScheduleItemDTO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class CreateScheduleItemRequest extends BaseGroupUserRequest {
-    List<ScheduleItemDTO> items;
+public class AScheduleItemRequest extends BaseGroupUserRequest {
+    String id;
 }

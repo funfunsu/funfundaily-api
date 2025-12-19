@@ -30,3 +30,12 @@ logging:
     com.example: INFO # 业务日志级别
     org.springframework.cloud.gateway: WARN # 网关框架日志级别（减少冗余）
 
+app:
+  limit:
+    count:
+      group: 1
+      group-member: 4
+    vip-count:
+      group: 3
+      group-member: 10
+

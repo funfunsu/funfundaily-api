@@ -54,7 +54,17 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
             group.setCreateTime(new Date());
         }
 
-        return scheduleGroupRepository.save(groupMapper.toEntity(group));
+        Group group1 =  scheduleGroupRepository.save(groupMapper.toEntity(group));
+        addCreatorToGroup(group1.getId(), group.getCreator());
+        return group1;
+    }
+
+    private  void addCreatorToGroup(Long groupId, Long userId){
+        GroupMember groupMember = new GroupMember();
+        groupMember.setRole(GroupRole.Creator.name());
+        groupMember.setUserId(userId);
+        groupMember.setGroupId(groupId);
+        groupMemberRepository.save(groupMember);
     }
 
 
@@ -94,12 +104,7 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
 
     private Group initUserGroup(Long userId){
         Group group = createAutoGroup(userId);
-
-        GroupMember groupMember = new GroupMember();
-        groupMember.setRole(GroupRole.Creator.name());
-        groupMember.setUserId(userId);
-        groupMember.setGroupId(group.getId());
-        groupMemberRepository.save(groupMember);
+        addCreatorToGroup(group.getId(), userId);
         return group;
     }
 
@@ -117,23 +122,14 @@ public class ScheduleGroupServiceImpl implements ScheduleGroupService {
     }
 
     @Override
-    public List<Group> getGroupsByCreator(Long creator) {
-        return scheduleGroupRepository.findByCreator(creator);
+    public int involvedGroupCount(Long userId) {
+        long count = groupMemberRepository.countByUserId(userId);
+        return (int) count;
     }
 
     @Override
-    public Group getOrCreateGroupByUser(Long creator) {
-        //先查找他创建的
-        List<Group> groupList = getGroupsByCreator(creator);
-        if (groupList != null && !groupList.isEmpty()){
-            return groupList.get(0);
-        }
-        //再查找他所在的
-        groupList = getGroupList(creator);
-        if (groupList != null && !groupList.isEmpty()){
-            return groupList.get(0);
-        }
-        return createAutoGroup(creator);
+    public List<Group> getGroupsByCreator(Long creator) {
+        return scheduleGroupRepository.findByCreator(creator);
     }
 
     @Override

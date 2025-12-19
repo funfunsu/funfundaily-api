@@ -3,8 +3,10 @@ package com.funfun.schedule.service;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.enums.ScheduleItemType;
 
 import java.text.ParseException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -99,6 +101,7 @@ public interface ScheduleItemService {
      * @return 按日期分组的日程项Map
      */
     List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate);
+    List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDateTime fromDate, LocalDateTime toDate, ScheduleItemType scheduleItemType);
     List<ScheduleListItemDTO> getTaskItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate);
 
 

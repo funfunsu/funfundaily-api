@@ -1,11 +1,11 @@
 package com.funfun.schedule.service.impl;
 
 import com.alibaba.fastjson2.JSON;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.funfun.schedule.dto.CheckinRecordDTO;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.entity.CheckinRecord;
 import com.funfun.schedule.entity.ScoreFlow;
+import com.funfun.schedule.enums.ScoreFlowLabel;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.mapper.CheckinRecordMapper;
 import com.funfun.schedule.repository.CheckinRecordRepository;
@@ -13,6 +13,7 @@ import com.funfun.schedule.repository.ScoreFlowRepository;
 import com.funfun.schedule.service.CheckinService;
 import com.funfun.schedule.service.GroupMemberService;
 import com.funfun.schedule.service.ScheduleItemService;
+import com.funfun.schedule.util.DateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,13 +53,15 @@ public class CheckinServiceImpl implements CheckinService {
         if (extraMap == null || extraMap.get(scoreKey) == null){
             return 0;
         }
-        String scoreStr = (String)extraMap.get(scoreKey);
-        return Integer.valueOf(scoreStr) ;
+        return (Integer)extraMap.get(scoreKey);
     }
 
     @Override
     @Transactional // 确保打卡和积分记录在同一事务中
     public Long performCheckin(CheckinRecordDTO requestDto) {
+        if (requestDto.getTaskTime() == null){
+            requestDto.setTaskTime(DateUtil.getStartOfDay(LocalDateTime.now()));
+        }
 
         Long userId = requestDto.getUserId(); // 从安全上下文获取更佳
         Long taskId = requestDto.getTaskId();
@@ -79,7 +82,7 @@ public class CheckinServiceImpl implements CheckinService {
         // - 用户今天是否已经打过此卡 (去重校验)
 
         // 示例：简单的重复打卡检查
-        Optional<CheckinRecord> existingRecord = checkinRecordRepository.findByUserIdAndTaskIdAndGroupId(userId, taskId, groupId);
+        Optional<CheckinRecord> existingRecord = checkinRecordRepository.getByUserIdAndTaskIdAndGroupIdAndTaskTimeBetween(userId, taskId, groupId, DateUtil.getStartOfDay(requestDto.getTaskTime()), DateUtil.getEndOfDay(requestDto.getTaskTime()));
         if (existingRecord.isPresent()) {
             // 这里可以根据业务需求决定是抛出异常还是忽略
             logger.warn("User {} has already checked in for task {} in group {}", userId, taskId, groupId);
@@ -88,6 +91,7 @@ public class CheckinServiceImpl implements CheckinService {
         // --- 2. 创建打卡记录 ---
         CheckinRecord checkinRecord = checkinRecordMapper.toEntity(requestDto);
         checkinRecord.setCompleteTime(LocalDateTime.now());
+        checkinRecord.setTaskTime(requestDto.getTaskTime());
         // 如果需要记录额外信息，可以设置 extra 字段
         // checkinRecord.setExtra(requestDto.getExtraInfo()); // 假设 requestDto 有这个字段
 
@@ -98,7 +102,6 @@ public class CheckinServiceImpl implements CheckinService {
         // Integer earnedScore = scoreCalculator.calculateForCheckin(taskId, userId); // 假设有这样的方法
         Integer earnedScore = getScore(scheduleItemDTO.getExtra()); // 示例固定积分
         String eventName = scheduleItemDTO.getItemTitle();
-        String label = "complete_task";
 
         // --- 4. 获取用户当前积分余额 (关键步骤!) ---
         // 这里简化处理，假设有一个方法或表来获取最新余额
@@ -113,7 +116,7 @@ public class CheckinServiceImpl implements CheckinService {
                 userId,
                 groupId,
                 eventName,
-                label,
+                ScoreFlowLabel.CompleteTask.name(),
                 operatorId // 操作人
         );
         // 如果需要记录额外信息，可以设置 extra 字段
@@ -149,7 +152,7 @@ public class CheckinServiceImpl implements CheckinService {
 
 
         // --- 调用 Repository 查询 ---
-        List<CheckinRecord> records = checkinRecordRepository.findByGroupIdAndUserIdAndCompleteTimeBetween(groupId, userId, from, to);
+        List<CheckinRecord> records = checkinRecordRepository.findByGroupIdAndUserIdAndTaskTimeBetween(groupId, userId, from, to);
         return checkinRecordMapper.toDTOList(records);
     }
 }

@@ -28,3 +28,13 @@ wechat:
 jwt:
   secret: k3VhG8nR2pL9qWxYzA7bNcM1oP5sT6uIvJ4eQ0fD2gH8jK3lZ=  # 至少32位
   expire: 7200 # token过期时间（秒），默认2小时
+
+
+app:
+  limit:
+    count:
+      group: 2
+      group-member: 3
+    vip-count:
+      group: 3
+      group-member: 10

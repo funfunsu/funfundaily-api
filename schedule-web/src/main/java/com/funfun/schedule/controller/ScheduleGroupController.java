@@ -1,8 +1,10 @@
 package com.funfun.schedule.controller;
 
+import com.funfun.schedule.anno.RequiredCountLimitCheck;
 import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.GroupDTO;
 import com.funfun.schedule.entity.Group;
+import com.funfun.schedule.enums.FunEntity;
 import com.funfun.schedule.enums.GroupType;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.ScheduleGroupService;
@@ -32,8 +34,10 @@ public class ScheduleGroupController {
      * 创建群组
      */
     @PostMapping("create")
+    @RequiredCountLimitCheck(entity = FunEntity.Group)
     public CommonResponse<Group> createGroup(@RequestBody GroupDTO group) {
         group.setType(GroupType.Manual.ordinal());
+        group.setCreator(UserContext.getUserId());
         Group createdGroup = scheduleGroupService.createGroup(group);
         return CommonResponse.success(createdGroup);
     }

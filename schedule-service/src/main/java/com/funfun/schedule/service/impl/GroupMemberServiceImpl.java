@@ -229,4 +229,9 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         GroupMember member = getGroupMemberByGroupIdAndUserId(groupId, userId);
         return member.getScore();
     }
+
+    @Override
+    public int includeMemberCount(Long groupId) {
+        return (int)groupMemberRepository.countByGroupId(groupId);
+    }
 }

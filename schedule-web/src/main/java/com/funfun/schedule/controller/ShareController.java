@@ -6,7 +6,6 @@ import com.alibaba.fastjson2.TypeReference;
 import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.InviteMemberShareDTO;
 import com.funfun.schedule.dto.ScheduleItemDTO;
-import com.funfun.schedule.entity.Group;
 import com.funfun.schedule.entity.GroupMember;
 import com.funfun.schedule.entity.ShareRecord;
 import com.funfun.schedule.entity.User;

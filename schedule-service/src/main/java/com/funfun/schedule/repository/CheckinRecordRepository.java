@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,19 +16,27 @@ import java.util.Optional;
 @Repository
 public interface CheckinRecordRepository extends JpaRepository<CheckinRecord, Long> {
 
-    Optional<CheckinRecord> findByUserIdAndTaskIdAndGroupId(Long userId, Long taskId, Long groupId);
+    @Query("SELECT c FROM CheckinRecord c WHERE c.taskId = :taskId AND  c.groupId = :groupId AND c.userId = :userId AND c.taskTime >= :from AND c.taskTime <= :to")
+    Optional<CheckinRecord> getByUserIdAndTaskIdAndGroupIdAndTaskTimeBetween(
+            @Param("userId") Long userId,
+            @Param("taskId") Long taskId,
+            @Param("groupId") Long groupId,
+            @Param("from") LocalDateTime from, // 使用 LocalDateTime
+            @Param("to") LocalDateTime to      // 使用 LocalDateTime
+    );
 
     /**
      * 根据 groupId, userId 和时间范围查询打卡记录
      * 使用 JPQL (Java Persistence Query Language)
+     *
      * @param groupId 群组ID
-     * @param userId 用户ID
-     * @param from 开始时间 (inclusive)
-     * @param to 结束时间 (exclusive)
+     * @param userId  用户ID
+     * @param from    开始时间 (inclusive)
+     * @param to      结束时间 (exclusive)
      * @return 符合条件的打卡记录列表
      */
-    @Query("SELECT c FROM CheckinRecord c WHERE c.groupId = :groupId AND c.userId = :userId AND c.completeTime >= :from AND c.completeTime < :to ORDER BY c.completeTime DESC")
-    List<CheckinRecord> findByGroupIdAndUserIdAndCompleteTimeBetween(
+    @Query("SELECT c FROM CheckinRecord c WHERE c.groupId = :groupId AND c.userId = :userId AND c.taskTime >= :from AND c.taskTime < :to ORDER BY c.completeTime DESC")
+    List<CheckinRecord> findByGroupIdAndUserIdAndTaskTimeBetween(
             @Param("groupId") Long groupId,
             @Param("userId") Long userId,
             @Param("from") LocalDateTime from, // 使用 LocalDateTime

@@ -3,6 +3,8 @@ package com.funfun.schedule.interceptor;
 
 import com.funfun.schedule.anno.NoAuth;
 import com.funfun.schedule.context.UserContext;
+import com.funfun.schedule.entity.UserVip;
+import com.funfun.schedule.service.UserVipService;
 import com.funfun.schedule.utils.LoginCheckUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -11,12 +13,16 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.Optional;
 
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
 
     @Autowired
     private LoginCheckUtil loginCheckUtil;
+
+    @Autowired
+    private UserVipService userVipService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -33,6 +39,10 @@ public class AuthInterceptor implements HandlerInterceptor {
         // 校验 token 是否存在（假设 token 存在 Redis 中，key: login:token:{token}）
         Long userId = loginCheckUtil.checkLoginAndGetUserId(request);
         UserContext.setUserId(userId);
+
+        Optional<UserVip> userVip =  userVipService.getUserVip(userId);
+        userVip.ifPresent(vip -> UserContext.setVipType(vip.getVipType()));
+
         return true;
     }
 

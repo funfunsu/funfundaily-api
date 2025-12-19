@@ -1,10 +1,13 @@
 package com.funfun.schedule.controller;
 
+import com.funfun.schedule.anno.RequiredCountLimitCheck;
+import com.funfun.schedule.anno.RequiredDataPermission;
 import com.funfun.schedule.dto.AddMemberRequest;
 import com.funfun.schedule.dto.GroupMemberDTO;
 import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.GroupMember;
 import com.funfun.schedule.entity.User;
+import com.funfun.schedule.enums.FunEntity;
 import com.funfun.schedule.mapper.GroupMapper;
 import com.funfun.schedule.mapper.GroupMemberMapper;
 import com.funfun.schedule.model.CommonResponse;
@@ -45,9 +48,11 @@ public class GroupMemberController {
         return CommonResponse.success(createdMember);
     }
     /**
-     * 用户加入群组
+     * 添加用户到群组
      */
     @PostMapping("add")
+    @RequiredDataPermission
+    @RequiredCountLimitCheck(entity = FunEntity.GroupMember)
     public CommonResponse<GroupMember> addMember(@RequestBody AddMemberRequest groupMember) {
         User user = userService.createUserByNickname(groupMember.getNickname());
         GroupMember gm = new GroupMember();

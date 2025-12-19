@@ -1,13 +1,15 @@
 package com.funfun.schedule.dto;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class CheckinRequest {
+public class CheckinRequest extends BaseGroupUserRequest{
     private String taskId;
-    private String groupId;
-    private String userId; // 通常由后端从安全上下文获取
+    private LocalDateTime taskTime;
     private Map<String,Object> extra; // 如果需要传递额外信息
 }

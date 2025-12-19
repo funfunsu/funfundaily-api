@@ -32,6 +32,7 @@ public interface ScheduleGroupService {
      * @return 群组列表
      */
     List<Group> getGroupList(Long userId);
+    int involvedGroupCount(Long userId);
 
     /**
      * 根据创建者ID查询群组
@@ -39,7 +40,6 @@ public interface ScheduleGroupService {
      * @return 群组列表
      */
     List<Group> getGroupsByCreator(Long creator);
-    Group getOrCreateGroupByUser(Long creator);
 
     /**
      * 根据标题模糊查询群组

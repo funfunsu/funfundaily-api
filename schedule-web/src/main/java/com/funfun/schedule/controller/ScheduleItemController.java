@@ -2,13 +2,17 @@ package com.funfun.schedule.controller;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
+import com.funfun.schedule.anno.RequiredDataPermission;
 import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.dto.schedule.CopyScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
-import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.dto.schedule.AScheduleItemRequest;
+import com.funfun.schedule.dto.schedule.GetScheduleItemRequest;
 import com.funfun.schedule.entity.ShareRecord;
+import com.funfun.schedule.enums.GroupRole;
+import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.ScheduleGroupService;
@@ -22,7 +26,6 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * ScheduleItemController类，提供RESTful API接口用于ScheduleItem的增删改查操作
@@ -34,13 +37,11 @@ public class ScheduleItemController {
 
 
     private final ScheduleItemService scheduleItemService;
-    private final ScheduleGroupService scheduleGroupService;
     private final ShareService shareService;
 
     @Autowired
     public ScheduleItemController(ScheduleItemService scheduleItemService, ScheduleGroupService scheduleGroupService, ShareService shareService) {
         this.scheduleItemService = scheduleItemService;
-        this.scheduleGroupService = scheduleGroupService;
         this.shareService = shareService;
     }
 
@@ -49,9 +50,10 @@ public class ScheduleItemController {
      * @return 创建的日程项对象和HTTP状态码
      */
     @PostMapping("/save")
+    @RequiredDataPermission
     public CommonResponse<Boolean> createScheduleItem(@RequestBody CreateScheduleItemRequest request) {
         Long userId = UserContext.getUserId();
-        Long groupId = Long.valueOf(request.groupId);
+        Long groupId = Long.valueOf(request.getGroupId());
         Boolean success = scheduleItemService.createScheduleItems(userId, groupId, Long.valueOf(request.getTargetUserId()),request.getItems());
         return CommonResponse.success(success);
     }
@@ -60,6 +62,7 @@ public class ScheduleItemController {
      * @return 创建的日程项对象和HTTP状态码
      */
     @PostMapping("/copy")
+    @RequiredDataPermission
     public CommonResponse<Boolean> createScheduleItem(@RequestBody CopyScheduleItemRequest request) {
         Optional<ShareRecord> shareRecordOptional = shareService.getShareByToken(request.getShareToken());
         if (!shareRecordOptional.isPresent()){
@@ -69,7 +72,7 @@ public class ScheduleItemController {
         List<ScheduleItemDTO> list = JSON.parseObject(shareContent,new TypeReference<List<ScheduleItemDTO>>(){});
         list.forEach(scheduleItemDTO -> {scheduleItemDTO.setId(null);});
         Long userId = UserContext.getUserId();
-        Long groupId = Long.valueOf(request.groupId);
+        Long groupId = Long.valueOf(request.getGroupId());
         Boolean success = scheduleItemService.createScheduleItems(userId, groupId, Long.valueOf(request.getTargetUserId()),list);
         return CommonResponse.success(success);
     }
@@ -84,12 +87,24 @@ public class ScheduleItemController {
         ScheduleItemDTO scheduleItem = scheduleItemService.getScheduleItemById(idLong);
         return CommonResponse.success(scheduleItem);
     }
+    /**
+     * 根据ID查询日程项
+     * @return 日程项对象和HTTP状态码
+     */
+    @PostMapping("/get")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
+    public CommonResponse<ScheduleItemDTO> getScheduleItem(@RequestBody AScheduleItemRequest request) {
+        Long idLong = Long.parseLong(request.getId());
+        ScheduleItemDTO scheduleItem = scheduleItemService.getScheduleItemById(idLong);
+        return CommonResponse.success(scheduleItem);
+    }
 
     /**
      * 查询所有日程项
      * @return 日程项列表和HTTP状态码
      */
     @GetMapping("/list")
+    @Deprecated
     public CommonResponse<?> getAllScheduleItems(
             @RequestParam(required = false) String groupId, 
             @RequestParam(required = false) String userId,
@@ -101,7 +116,11 @@ public class ScheduleItemController {
         }
         
         Long groupIdLong = Long.parseLong(groupId);
-        Long userIdLong = Long.parseLong(userId);
+
+        Long userIdLong = null;
+        if (!"ALL".equals(userId)){
+            userIdLong = Long.parseLong(userId);
+        }
 
         // 如果提供了fromDate和toDate，则按日期范围查询并分组
         if (fromDate == null || toDate == null) {
@@ -116,16 +135,22 @@ public class ScheduleItemController {
     }
 
     /**
-     * 更新日程项
-     * @param id 日程项ID
-     * @param scheduleItem 新的日程项数据
-     * @return 更新后的日程项对象和HTTP状态码
+     * 查询所有日程项
+     * @return 日程项列表和HTTP状态码
      */
-    @PutMapping("/{id}")
-    public CommonResponse<ScheduleItem> updateScheduleItem(@PathVariable String id, @RequestBody ScheduleItem scheduleItem) {
-        Long idLong = Long.parseLong(id);
-        ScheduleItem updatedItem = scheduleItemService.updateScheduleItem(idLong, scheduleItem);
-        return CommonResponse.success(updatedItem);
+    @PostMapping("/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
+    public CommonResponse<?> getScheduleItems(GetScheduleItemRequest request) {
+        // 检查必要参数
+        if (request.getGroupId() == null &&  request.getTargetUserId() == null) {
+            CommonException.DATA_INVALID.throwsError("groupId and userId are required");
+        }
+        Long groupIdLong = request.getGroupId() == null? null : Long.valueOf(request.getGroupId());
+        Long userIdLong = request.getGroupId() == null? null : Long.valueOf(request.getTargetUserId());
+
+        List<ScheduleListItemDTO> scheduleItemsByDate =
+                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), ScheduleItemType.schedule);
+        return CommonResponse.success(scheduleItemsByDate);
     }
 
     /**
@@ -139,76 +164,15 @@ public class ScheduleItemController {
         scheduleItemService.deleteScheduleItem(idLong);
         return CommonResponse.success();
     }
-
     /**
-     * 根据groupId和personId查询日程项
-     * @param groupId 组ID
-     * @param personId 人员ID
-     * @return 日程项列表和HTTP状态码
-     */
-    @GetMapping("/group-person")
-    public CommonResponse<List<ScheduleItem>> getScheduleItemsByGroupIdAndPersonId(
-            @RequestParam String groupId, @RequestParam String personId) {
-        Long groupIdLong = Long.parseLong(groupId);
-        Long personIdLong = Long.parseLong(personId);
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupIdAndPersonId(groupIdLong, personIdLong);
-        return CommonResponse.success(scheduleItems);
-    }
-
-    /**
-     * 根据groupId查询日程项
-     * @param groupId 组ID
-     * @return 日程项列表和HTTP状态码
-     */
-    @GetMapping("/group/{groupId}")
-    public CommonResponse<List<ScheduleItem>> getScheduleItemsByGroupId(@PathVariable String groupId) {
-        Long groupIdLong = Long.parseLong(groupId);
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByGroupId(groupIdLong);
-        return CommonResponse.success(scheduleItems);
-    }
-
-    /**
-     * 根据personId查询日程项
-     * @param personId 人员ID
-     * @return 日程项列表和HTTP状态码
-     */
-    @GetMapping("/person/{personId}")
-    public CommonResponse<List<ScheduleItem>> getScheduleItemsByPersonId(@PathVariable String personId) {
-        Long personIdLong = Long.valueOf(personId);
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByPersonId(personIdLong);
-        return CommonResponse.success(scheduleItems);
-    }
-
-    /**
-     * 根据itemType查询日程项
-     * @param itemType 项目类型
-     * @return 日程项列表和HTTP状态码
-     */
-    @GetMapping("/type/{itemType}")
-    public CommonResponse<List<ScheduleItem>> getScheduleItemsByItemType(@PathVariable String itemType) {
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByItemType(itemType);
-        return CommonResponse.success(scheduleItems);
-    }
-
-    /**
-     * 根据repeatType查询日程项
-     * @param repeatType 重复类型
-     * @return 日程项列表和HTTP状态码
-     */
-    @GetMapping("/repeat-type/{repeatType}")
-    public CommonResponse<List<ScheduleItem>> getScheduleItemsByRepeatType(@PathVariable String repeatType) {
-        List<ScheduleItem> scheduleItems = scheduleItemService.getScheduleItemsByRepeatType(repeatType);
-        return CommonResponse.success(scheduleItems);
-    }
-    /**
-     * 批量删除日程项
-     * @param ids 日程项ID列表
+     * 删除日程项
      * @return HTTP状态码
      */
-    @DeleteMapping("/batch")
-    public CommonResponse<Void> batchDeleteScheduleItems(@RequestBody List<String> ids) {
-        List<Long> idLongs = ids.stream().map(Long::parseLong).collect(Collectors.toList());
-        scheduleItemService.batchDeleteScheduleItems(idLongs);
+    @PostMapping("/delete")
+    @RequiredDataPermission
+    public CommonResponse<Void> delete(@RequestBody AScheduleItemRequest request) {
+        Long idLong = Long.parseLong(request.getId());
+        scheduleItemService.deleteScheduleItem(idLong);
         return CommonResponse.success();
     }
 }

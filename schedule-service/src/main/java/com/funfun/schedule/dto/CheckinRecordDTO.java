@@ -20,6 +20,8 @@ public class CheckinRecordDTO {
 
     private LocalDateTime completeTime;
 
+    private LocalDateTime taskTime;
+
     private Map<String,Object> extra;
 
 }

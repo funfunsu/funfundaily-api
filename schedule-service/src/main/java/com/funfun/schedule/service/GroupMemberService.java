@@ -113,4 +113,5 @@ public interface GroupMemberService {
      */
     void updateMemberScore(Long groupId, Long userId, int newBalance);
     int getMemberScore(Long groupId, Long userId);
+    int includeMemberCount(Long groupId);
 }

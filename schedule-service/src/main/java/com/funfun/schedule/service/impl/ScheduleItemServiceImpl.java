@@ -7,6 +7,7 @@ import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.mapper.ScheduleItemMapper;
 import com.funfun.schedule.repository.ScheduleItemRepository;
 import com.funfun.schedule.service.ScheduleItemService;
+import com.funfun.schedule.util.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,6 +45,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
             scheduleItemEntity.setUpdateBy(userId);
             scheduleItemEntity.setCreateTime(new Date());
             scheduleItemEntity.setUpdateTime(new Date());
+            scheduleItemEntity.setLabel(scheduleItemDTO.getLabel());
             scheduleItemRepository.save(scheduleItemEntity);
         }
         return true;
@@ -162,6 +165,15 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         }
     }
 
+    @Override
+    public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDateTime fromDate, LocalDateTime toDate,ScheduleItemType scheduleItemType) {
+        try {
+            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,scheduleItemType);
+            return transferToDateScheduleItems(DateUtil.formatToLocalDateStr(fromDate),DateUtil.formatToLocalDateStr(toDate),allScheduleItemDTOS);
+        } catch (ParseException e) {
+            throw new RuntimeException("Date format error: " + e.getMessage());
+        }
+    }
 
     @Override
     public List<ScheduleListItemDTO> transferToDateScheduleItems(String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException {

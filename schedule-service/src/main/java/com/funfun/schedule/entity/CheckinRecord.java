@@ -22,6 +22,8 @@ public class CheckinRecord {
 
     @Column(name = "complete_time", nullable = false)
     private LocalDateTime completeTime;
+    @Column(name = "task_time", nullable = false)
+    private LocalDateTime taskTime;
 
     @Column(name = "extra", columnDefinition = "TEXT")
     private String extra; // 可以考虑使用 @Convert(converter = JsonConverter.class) 转换为 Map 或 Object
@@ -67,6 +69,14 @@ public class CheckinRecord {
         this.deleted = deleted;
     }
 
+    public LocalDateTime getTaskTime() {
+        return taskTime;
+    }
+
+    public void setTaskTime(LocalDateTime taskTime) {
+        this.taskTime = taskTime;
+    }
+
     @Override
     public String toString() {
         return "CheckinRecord{" +
@@ -75,6 +85,7 @@ public class CheckinRecord {
                 ", userId=" + userId +
                 ", groupId=" + groupId +
                 ", completeTime=" + completeTime +
+                ", taskTime=" + taskId +
                 ", extra='" + extra + '\'' +
                 ", deleteFlag=" + deleted +
                 '}';
