@@ -1,10 +1,14 @@
 package com.funfun.schedule.util;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 public class DateUtil {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
 
     /**
      * 返回一天的起始时间 (yyyy-MM-dd 00:00:00)
@@ -47,4 +51,14 @@ public class DateUtil {
         // 使用格式器格式化 LocalDateTime
         return localDateTime.format(formatter);
     }
+    public static LocalDateTime parse(String dateString) {
+        if (dateString == null || dateString.trim().isEmpty()) {
+            return null; // 或抛出异常
+        }
+
+        LocalDate date = LocalDate.parse(dateString);
+        LocalTime time = LocalTime.of(0, 0, 0);
+        return LocalDateTime.of(date, time);
+    }
+
 }

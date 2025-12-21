@@ -1,6 +1,7 @@
 package com.funfun.schedule.mapper;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import org.mapstruct.Named;
 
@@ -32,5 +33,31 @@ public interface BaseMapper {
             return null;
         }
         return JSON.toJSONString(map);
+    }
+
+    /**
+     * 将列表转换为字符串
+     * @param map 字符串列表
+     * @return 转换后的字符串
+     */
+    @Named("jsonToString")
+    default String jsonToString(JSONObject map) {
+        if (map == null){
+            return null;
+        }
+        return JSON.toJSONString(map);
+    }
+
+    /**
+     * 将列表转换为字符串
+     * @param str 字符串列表
+     * @return 转换后的字符串
+     */
+    @Named("stringToJson")
+    default JSONObject stringToJson(String str) {
+        if (str == null){
+            return null;
+        }
+        return JSON.parseObject(str);
     }
 }

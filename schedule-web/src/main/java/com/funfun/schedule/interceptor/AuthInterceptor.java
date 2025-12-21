@@ -4,6 +4,7 @@ package com.funfun.schedule.interceptor;
 import com.funfun.schedule.anno.NoAuth;
 import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.entity.UserVip;
+import com.funfun.schedule.enums.VipType;
 import com.funfun.schedule.service.UserVipService;
 import com.funfun.schedule.utils.LoginCheckUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,8 +42,11 @@ public class AuthInterceptor implements HandlerInterceptor {
         UserContext.setUserId(userId);
 
         Optional<UserVip> userVip =  userVipService.getUserVip(userId);
-        userVip.ifPresent(vip -> UserContext.setVipType(vip.getVipType()));
-
+        if (userVip.isPresent()){
+            UserContext.setVipType(userVip.get().getVipType());
+        }else{
+            UserContext.setVipType(VipType.NONE);
+        }
         return true;
     }
 

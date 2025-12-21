@@ -2,8 +2,11 @@ package com.funfun.schedule.repository;
 
 import com.funfun.schedule.entity.ScheduleItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -19,6 +22,45 @@ public interface ScheduleItemRepository extends JpaRepository<ScheduleItem, Long
      * @return 日程项列表
      */
     List<ScheduleItem> findByGroupIdAndUserId(Long groupId, Long UserId);
+
+
+    /**
+     * 查找在指定时间窗口内有活动（重复周期与窗口重叠）且属于指定组的日程项。
+     * 时间重叠条件：schedule.repeatStartDay < windowEndTime AND schedule.repeatEndDay > windowStartTime
+     *
+     * @param groupId        组ID
+     * @param windowStartTime 查询时间窗口的开始时间
+     * @param windowEndTime   查询时间窗口的结束时间
+     * @return 符合条件的日程项列表
+     */
+    @Query("SELECT s FROM ScheduleItem s WHERE s.groupId = :groupId " +
+            "AND s.repeatStartDay < :windowEndTime " +
+            "AND s.repeatEndDay > :windowStartTime")
+    List<ScheduleItem> findOverlappingByGroupId(
+            @Param("groupId") Long groupId,
+            @Param("windowStartTime") LocalDateTime windowStartTime,
+            @Param("windowEndTime") LocalDateTime windowEndTime);
+
+
+    @Query("SELECT s FROM ScheduleItem s WHERE s.userId = :userId " +
+            "AND s.repeatStartDay < :windowEndTime " +
+            "AND s.repeatEndDay > :windowStartTime")
+    List<ScheduleItem> findOverlappingByUserId(
+            @Param("userId") Long userId,
+            @Param("windowStartTime") LocalDateTime windowStartTime,
+            @Param("windowEndTime") LocalDateTime windowEndTime);
+
+
+
+    @Query("SELECT s FROM ScheduleItem s WHERE s.userId = :userId " +
+            "AND s.groupId = :groupId "+
+            "AND s.repeatStartDay < :windowEndTime " +
+            "AND s.repeatEndDay > :windowStartTime")
+    List<ScheduleItem> findOverlappingByGroupIdAndUserId(
+            @Param("groupId") Long groupId,
+            @Param("userId") Long userId,
+            @Param("windowStartTime") LocalDateTime windowStartTime,
+            @Param("windowEndTime") LocalDateTime windowEndTime);
 
     /**
      * 根据groupId查询日程项

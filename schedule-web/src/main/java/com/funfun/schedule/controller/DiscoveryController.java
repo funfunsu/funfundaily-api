@@ -41,6 +41,12 @@ public class DiscoveryController {
         itemDTO.setUri("/pages/point/exchange");
         itemDTO.setItemType("path");
         list.add(itemDTO);
+        itemDTO = new DiscoveryItemDTO();
+        itemDTO.setItemTitle("汉字书写");
+        itemDTO.setUri("/subPackages/study-tools/pages/writing/stroke-order");
+        itemDTO.setItemType("path");
+        itemDTO.setStatus("active");
+        list.add(itemDTO);
         return CommonResponse.success(list);
     }
 

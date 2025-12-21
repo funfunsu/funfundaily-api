@@ -33,8 +33,6 @@ public class EntityCountLimitAspect {
     ScheduleGroupService groupService;
     @Autowired
     AppLimitConfig appLimitConfig;
-    @Autowired
-    UserVipService userVipService;
     /**
      * 拦截所有被 @RequiredDataPermission 注解标记的 Controller 方法。
      *

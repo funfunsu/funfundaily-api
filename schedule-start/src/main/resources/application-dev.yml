@@ -38,3 +38,6 @@ app:
     vip-count:
       group: 3
       group-member: 10
+  json:
+    hanzi-writer-data:
+      path: /Users/fun/IdeaProjects/funfundaily/funfundaily-uniapp/node_modules/hanzi-writer-data

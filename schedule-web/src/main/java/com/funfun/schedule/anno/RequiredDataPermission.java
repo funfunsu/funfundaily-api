@@ -27,4 +27,6 @@ public @interface RequiredDataPermission {
     // PermissionAction action() default PermissionAction.READ; // READ, WRITE, DELETE 等
     // boolean strictMode() default true; // 是否严格模式，例如 targetUserId 必须由系统设置等
     GroupRole[] allowRole() default {GroupRole.Admin}; // 是否严格模式，例如 targetUserId 必须由系统设置等
+
+    boolean onlyForVip() default false;
 }

@@ -1,0 +1,63 @@
+services:
+  # ========== 共享 MySQL 服务 ==========
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-shared
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}  # 仅用于管理
+      TEST_ENV_VAR_LOADED: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ./mysql:/var/lib/mysql                # 持久化数据
+      - ./init-sql:/docker-entrypoint-initdb.d # ← 自动执行初始化脚本
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ========== Nginx 反向代理 ==========
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /root/stack/acme:/etc/nginx/ssl:ro
+    depends_on:
+      - schedule-app
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  schedule-app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: schedule-app
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_NAME: funfundaily_db
+      DB_USERNAME: ${SCHEDULE_APP_DB_USERNAME}
+      DB_PASSWORD: ${SCHEDULE_APP_DB_PASSWORD}
+      WECHAT_MINI_APP_ID: ${WECHAT_MINI_APP_ID}
+      WECHAT_MINI_SECRET: ${WECHAT_MINI_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      # 可选：JPA 配置也可通过环境变量
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_SHOW_SQL: "false"
+    depends_on:
+      - mysql
+    networks:
+      - app-network
+    volumes:
+      - ./logs/schedule-app:/app/logs
+      - /root/stack/hanzi-writer-data:/app/data/hanzi-writer-data:ro # :ro 表示只读挂载，更安全
+
+
+volumes:
+  wp_data:
+
+networks:
+  app-network:
+    driver: bridge

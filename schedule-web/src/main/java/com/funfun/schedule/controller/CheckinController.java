@@ -67,24 +67,12 @@ public class CheckinController {
     }
     @PostMapping("/list")
     @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
-    public CommonResponse<?> getCheckInRecords(GetScheduleItemRequest request) {
+    public CommonResponse<?> getCheckInRecords(@RequestBody GetScheduleItemRequest request) {
         LocalDateTime from = DateUtil.getStartOfDay(request.getFromDate());
         LocalDateTime to = DateUtil.getEndOfDay(request.getFromDate());
         Long groupIdLong = Long.valueOf(request.getGroupId());
         Long userIdLong = Long.valueOf(request.getTargetUserId());
         return CommonResponse.success(checkinService.getRecordList(groupIdLong,userIdLong,from,to));
-    }
-
-    @GetMapping("/task/list")
-    @Deprecated
-    public CommonResponse<?> listTask(
-            @RequestParam(required = false) String groupId,
-            @RequestParam(required = false) String userId,
-            @RequestParam(required = false) String fromDate) {
-        Long groupIdLong = Long.valueOf(groupId);
-        Long userIdLong = Long.valueOf(userId);
-        List<ScheduleListItemDTO>  list = scheduleItemService.getTaskItemsByDateRange(groupIdLong,userIdLong,fromDate,fromDate);
-        return CommonResponse.success(list.get(0).getSchedules());
     }
 
 
@@ -94,7 +82,7 @@ public class CheckinController {
      */
     @PostMapping("/task/list")
     @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
-    public CommonResponse<?> getTasks(GetScheduleItemRequest request) {
+    public CommonResponse<?> getTasks(@RequestBody GetScheduleItemRequest request) {
         // 检查必要参数
         if (request.getGroupId() == null &&  request.getTargetUserId() == null) {
             CommonException.DATA_INVALID.throwsError("groupId and userId are required");

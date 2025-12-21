@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -49,12 +50,12 @@ public class ScheduleItemDTO {
     /**
      * 重复开始日期
      */
-    private Date repeatStartDay;
+    private LocalDateTime repeatStartDay;
 
     /**
      * 重复结束日期
      */
-    private Date repeatEndDay;
+    private LocalDateTime repeatEndDay;
 
     /**
      * 日程类型：meeting（会议）、task（任务）等
@@ -70,12 +71,12 @@ public class ScheduleItemDTO {
     /**
      * 开始时间
      */
-    private Date startTime;
+    private LocalDateTime startTime;
 
     /**
      * 结束时间
      */
-    private Date endTime;
+    private LocalDateTime endTime;
 
     private Long userId;
 

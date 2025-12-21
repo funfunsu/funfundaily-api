@@ -10,6 +10,7 @@ public class CommonException {
     public static final CommonException PARAM_INVALID = new CommonException("4000000", "参数有误.{0}");
     public static final CommonException LOGIN_INVALID = new CommonException("4010001", "登录无效.{0}");
     public static final CommonException NOT_ALLOWED = new CommonException("4030000", "不允许操作.{0}");
+    public static final CommonException ONLY_VIP_IS_ALLOWED = new CommonException("4030100", "需要会员身份");
     public static final CommonException DATA_DUPLICATE = new CommonException("4030001", "数据重复.{0}");
     public static final CommonException DATA_INVALID = new CommonException("4030002", "数据有误.{0}");
     public static final CommonException CONCURRENT_ERROR = new CommonException("4030004", "并发控制错误.{0}");

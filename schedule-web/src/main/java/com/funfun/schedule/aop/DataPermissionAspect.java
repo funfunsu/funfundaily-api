@@ -5,6 +5,7 @@ import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.BaseGroupRequest;
 import com.funfun.schedule.entity.GroupMember;
 import com.funfun.schedule.enums.GroupRole;
+import com.funfun.schedule.enums.VipType;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.service.GroupMemberService;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -52,6 +53,13 @@ public class DataPermissionAspect {
         // 1. 获取当前认证用户的 ID
         Long currentUserId = UserContext.getUserId();
 
+        if (requiredDataPermission.onlyForVip()){
+            VipType vipType = UserContext.getVipType();
+            if (VipType.NONE.equals(vipType)){
+                CommonException.ONLY_VIP_IS_ALLOWED.throwsError();
+            }
+        }
+
         // 2. 查找并处理 BaseGroupRequest 参数
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
@@ -68,6 +76,9 @@ public class DataPermissionAspect {
             // 检查参数类型是否为 BaseGroupRequest (或其子类)
             if (hasRequestBody && args[i] instanceof BaseGroupRequest) {
                 BaseGroupRequest baseRequest = (BaseGroupRequest) args[i];
+                if (baseRequest.getGroupId() == null){
+                    break;
+                }
                 UserContext.setOperateGroupId(Long.valueOf(baseRequest.getGroupId()));
                 GroupMember gm = groupMemberService.getGroupMemberByGroupIdAndUserId(UserContext.getOperateGroupId(),currentUserId);
                 if (GroupRole.Creator.name().equals(gm.getRole())){

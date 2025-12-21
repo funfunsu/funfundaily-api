@@ -103,51 +103,16 @@ public class ScheduleItemController {
      * 查询所有日程项
      * @return 日程项列表和HTTP状态码
      */
-    @GetMapping("/list")
-    @Deprecated
-    public CommonResponse<?> getAllScheduleItems(
-            @RequestParam(required = false) String groupId, 
-            @RequestParam(required = false) String userId,
-            @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate) {
-        // 检查必要参数
-        if (groupId == null || userId == null) {
-            CommonException.DATA_INVALID.throwsError("groupId and userId are required");
-        }
-        
-        Long groupIdLong = Long.parseLong(groupId);
-
-        Long userIdLong = null;
-        if (!"ALL".equals(userId)){
-            userIdLong = Long.parseLong(userId);
-        }
-
-        // 如果提供了fromDate和toDate，则按日期范围查询并分组
-        if (fromDate == null || toDate == null) {
-            LocalDateTime localDateTime = LocalDateTime.now();
-            fromDate = new SimpleDateFormat("yyyy-MM-dd").format(localDateTime);
-            toDate = new SimpleDateFormat("yyyy-MM-dd").format(Date.from(localDateTime.plusDays(7).atZone(java.time.ZoneId.systemDefault()).toInstant()));
-
-        }
-        List<ScheduleListItemDTO> scheduleItemsByDate =
-                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, fromDate, toDate);
-        return CommonResponse.success(scheduleItemsByDate);
-    }
-
-    /**
-     * 查询所有日程项
-     * @return 日程项列表和HTTP状态码
-     */
     @PostMapping("/list")
     @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
-    public CommonResponse<?> getScheduleItems(GetScheduleItemRequest request) {
-        // 检查必要参数
-        if (request.getGroupId() == null &&  request.getTargetUserId() == null) {
-            CommonException.DATA_INVALID.throwsError("groupId and userId are required");
-        }
+    public CommonResponse<?> getScheduleItems(@RequestBody GetScheduleItemRequest request) {
         Long groupIdLong = request.getGroupId() == null? null : Long.valueOf(request.getGroupId());
-        Long userIdLong = request.getGroupId() == null? null : Long.valueOf(request.getTargetUserId());
+        Long userIdLong = request.getTargetUserId() == null? null: Long.valueOf(request.getTargetUserId());
 
+        if (groupIdLong == null && userIdLong == null){
+            //默认是查自己
+            userIdLong = UserContext.getUserId();
+        }
         List<ScheduleListItemDTO> scheduleItemsByDate =
                 scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), ScheduleItemType.schedule);
         return CommonResponse.success(scheduleItemsByDate);

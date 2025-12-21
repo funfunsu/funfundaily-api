@@ -1,6 +1,9 @@
 package com.funfun.schedule.entity;
 
+import lombok.Data;
+
 import javax.persistence.*;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 /**
@@ -8,6 +11,7 @@ import java.util.Date;
  */
 @Entity
 @Table(name = "schedule_item")
+@Data
 public class ScheduleItem {
 
     @Id
@@ -30,19 +34,19 @@ public class ScheduleItem {
     private String repeatKeys; // 重复键
 
     @Column(name = "repeat_start_day")
-    private Date repeatStartDay; // 重复开始日期
+    private LocalDateTime repeatStartDay; // 重复开始日期
 
     @Column(name = "repeat_end_day")
-    private Date repeatEndDay; // 重复结束日期
+    private LocalDateTime repeatEndDay; // 重复结束日期
 
     @Column(name = "item_type", length = 8, nullable = false)
     private String itemType; // 项目类型，非空
 
     @Column(name = "start_time", nullable = false)
-    private Date startTime; // 开始时间，非空
+    private LocalDateTime startTime; // 开始时间，非空
 
     @Column(name = "end_time", nullable = false)
-    private Date endTime; // 结束时间，非空
+    private LocalDateTime endTime; // 结束时间，非空
 
     @Column(name = "user_id", nullable = false)
     private Long userId; // 人员ID，非空
@@ -65,162 +69,6 @@ public class ScheduleItem {
     @Column(name = "update_time", nullable = false)
     private Date updateTime; // 修改时间，非空
 
-    // 构造方法
-    public ScheduleItem() {
-    }
-
-    // 手动添加的getter和setter方法
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getItemTitle() {
-        return itemTitle;
-    }
-
-    public void setItemTitle(String itemTitle) {
-        this.itemTitle = itemTitle;
-    }
-
-    public String getItemDesc() {
-        return itemDesc;
-    }
-
-    public void setItemDesc(String itemDesc) {
-        this.itemDesc = itemDesc;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public String getRepeatType() {
-        return repeatType;
-    }
-
-    public void setRepeatType(String repeatType) {
-        this.repeatType = repeatType;
-    }
-
-    public String getRepeatKeys() {
-        return repeatKeys;
-    }
-
-    public void setRepeatKeys(String repeatKeys) {
-        this.repeatKeys = repeatKeys;
-    }
-
-    public Date getRepeatStartDay() {
-        return repeatStartDay;
-    }
-
-    public void setRepeatStartDay(Date repeatStartDay) {
-        this.repeatStartDay = repeatStartDay;
-    }
-
-    public Date getRepeatEndDay() {
-        return repeatEndDay;
-    }
-
-    public void setRepeatEndDay(Date repeatEndDay) {
-        this.repeatEndDay = repeatEndDay;
-    }
-
-    public String getItemType() {
-        return itemType;
-    }
-
-    public void setItemType(String itemType) {
-        this.itemType = itemType;
-    }
-
-    public Date getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(Date startTime) {
-        this.startTime = startTime;
-    }
-
-    public Date getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(Date endTime) {
-        this.endTime = endTime;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public Long getGroupId() {
-        return groupId;
-    }
-
-    public void setGroupId(Long groupId) {
-        this.groupId = groupId;
-    }
-
-    public String getExtra() {
-        return extra;
-    }
-
-    public void setExtra(String extra) {
-        this.extra = extra;
-    }
-
-    public String getLabel() {
-        return label;
-    }
-
-    public void setLabel(String label) {
-        this.label = label;
-    }
-
-    public Long getCreateBy() {
-        return createBy;
-    }
-
-    public void setCreateBy(Long createBy) {
-        this.createBy = createBy;
-    }
-
-    public Long getUpdateBy() {
-        return updateBy;
-    }
-
-    public void setUpdateBy(Long updateBy) {
-        this.updateBy = updateBy;
-    }
-
-    public Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public Date getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(Date updateTime) {
-        this.updateTime = updateTime;
-    }
 
     @Override
     public String toString() {

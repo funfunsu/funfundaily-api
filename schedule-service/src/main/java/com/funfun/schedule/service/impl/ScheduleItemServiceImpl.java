@@ -3,17 +3,20 @@ package com.funfun.schedule.service.impl;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.enums.RepeatType;
 import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.mapper.ScheduleItemMapper;
 import com.funfun.schedule.repository.ScheduleItemRepository;
 import com.funfun.schedule.service.ScheduleItemService;
 import com.funfun.schedule.util.DateUtil;
+import net.bytebuddy.asm.Advice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -45,7 +48,15 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
             scheduleItemEntity.setUpdateBy(userId);
             scheduleItemEntity.setCreateTime(new Date());
             scheduleItemEntity.setUpdateTime(new Date());
-            scheduleItemEntity.setLabel(scheduleItemDTO.getLabel());
+
+            if (scheduleItemEntity.getRepeatStartDay() == null || RepeatType.none.name().equals(scheduleItemEntity.getRepeatType())){
+                scheduleItemEntity.setRepeatStartDay(DateUtil.getStartOfDay(scheduleItemEntity.getStartTime()));
+            }
+
+            if (scheduleItemEntity.getRepeatEndDay() == null || RepeatType.none.name().equals(scheduleItemEntity.getRepeatType())){
+                scheduleItemEntity.setRepeatEndDay(DateUtil.getEndOfDay(scheduleItemEntity.getEndTime()));
+            }
+
             scheduleItemRepository.save(scheduleItemEntity);
         }
         return true;
@@ -135,40 +146,25 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         scheduleItemRepository.deleteAllById(ids);
     }
 
-    private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,ScheduleItemType itemType){
+    private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,ScheduleItemType itemType,LocalDateTime fromDate, LocalDateTime toDate){
         List<ScheduleItem> allScheduleItems = null;
-        if (userId != null) {
-            allScheduleItems = scheduleItemRepository.findByGroupIdAndUserId(groupId, userId);
+        if (userId == null){
+            allScheduleItems = scheduleItemRepository.findOverlappingByGroupId(groupId,fromDate,toDate);
         }else{
-            allScheduleItems = scheduleItemRepository.findByGroupId(groupId);
+            if (groupId == null){
+                allScheduleItems = scheduleItemRepository.findOverlappingByUserId(userId,fromDate,toDate);
+            }else{
+                allScheduleItems = scheduleItemRepository.findOverlappingByGroupIdAndUserId(groupId, userId,fromDate,toDate);
+            }
         }
         return  scheduleItemMapper.toDTOList(allScheduleItems.stream().filter(scheduleItemDTO -> {return itemType.name().equals(scheduleItemDTO.getItemType());}).collect(Collectors.toList()));
     }
 
-    @Override
-    public List<ScheduleListItemDTO> getTaskItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate) {
-        try {
-            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.task);
-            return transferToDateScheduleItems(fromDate,toDate,allScheduleItemDTOS);
-        } catch (ParseException e) {
-            throw new RuntimeException("Date format error: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, String fromDate, String toDate) {
-        try {
-            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,ScheduleItemType.schedule);
-            return transferToDateScheduleItems(fromDate,toDate,allScheduleItemDTOS);
-        } catch (ParseException e) {
-            throw new RuntimeException("Date format error: " + e.getMessage());
-        }
-    }
 
     @Override
     public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDateTime fromDate, LocalDateTime toDate,ScheduleItemType scheduleItemType) {
         try {
-            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,scheduleItemType);
+            List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,scheduleItemType,fromDate,toDate);
             return transferToDateScheduleItems(DateUtil.formatToLocalDateStr(fromDate),DateUtil.formatToLocalDateStr(toDate),allScheduleItemDTOS);
         } catch (ParseException e) {
             throw new RuntimeException("Date format error: " + e.getMessage());
@@ -180,7 +176,6 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         List<String> allDates = generateDates(fromDate, toDate);
         // 按日期分组存储结果
         List<ScheduleListItemDTO> result = new ArrayList<>(allDates.size());
-
         // 对每个日期进行处理
         for (String date : allDates) {
             // 过滤并填充该日期的日程项
@@ -224,9 +219,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
      * 根据日期过滤日程项，处理不同类型的重复规则
      */
     private List<ScheduleItemDTO> filterAndFillSchedules(List<ScheduleItemDTO> schedules, String date) throws ParseException {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-
-        Date dateObj = dateFormat.parse(date);
+        LocalDateTime dateObj = DateUtil.parse(date);
         
         // 非重复日程项
         List<ScheduleItemDTO> noneRepeatSchedules = schedules.stream()
@@ -253,7 +246,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
                 .collect(Collectors.toList());
         
         // 每月重复日程项
-        String monthlyRepeatKey = String.valueOf(dateObj.getDate());
+        String monthlyRepeatKey = String.valueOf(dateObj.getDayOfMonth());
         List<ScheduleItemDTO> monthlySchedules = schedules.stream()
                 .filter(schedule -> "monthly".equals(schedule.getRepeatType()) && 
                         isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj) &&
@@ -262,7 +255,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
                 .collect(Collectors.toList());
         
         // 每年重复日程项
-        String yearlyRepeatKey = String.format("%d-%d", dateObj.getMonth() + 1, dateObj.getDate());
+        String yearlyRepeatKey = String.format("%d-%d", dateObj.getMonthValue() + 1, dateObj.getDayOfMonth());
         List<ScheduleItemDTO> yearlySchedules = schedules.stream()
                 .filter(schedule -> "yearly".equals(schedule.getRepeatType()) && 
                         isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj) &&
@@ -284,42 +277,40 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     /**
      * 检查日期是否在开始和结束时间范围内
      */
-    private boolean isDateWithinRange(Date startTime, Date endTime, Date date) {
+    private boolean isDateWithinRange(LocalDateTime startTime, LocalDateTime endTime, LocalDateTime date) {
         // 1. 处理空值情况
         if (startTime == null || endTime == null || date == null) {
             return false;
         }
-        LocalDate checkDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-        Date startOfDay = Date.from(checkDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
-        Date endOfDay = Date.from(checkDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
-        return startTime.before(endOfDay) && startTime.after(startOfDay) || endTime.before(endOfDay) && endTime.after(startOfDay);
+        LocalDateTime startOfDay = DateUtil.getStartOfDay(date);
+        LocalDateTime endOfDay = DateUtil.getEndOfDay(date);
+        return startTime.isAfter(startOfDay) && startTime.isBefore(endOfDay) || endTime.isAfter(startOfDay) && endTime.isBefore(endOfDay);
     }
     
     /**
      * 检查日期是否在重复范围内
      */
-    private boolean isDateWithinRepeatRange(Date repeatStartDay, Date repeatEndDay, Date date) {
+    private boolean isDateWithinRepeatRange(LocalDateTime repeatStartDay, LocalDateTime repeatEndDay, LocalDateTime date) {
         if (repeatStartDay == null) {
             return true;
         }
         
         if (repeatEndDay == null) {
-            return !date.before(repeatStartDay);
+            return !date.isBefore(repeatStartDay);
         }
         
-        return !date.before(repeatStartDay) && !date.after(repeatEndDay);
+        return !date.isBefore(repeatStartDay) && !date.isAfter(repeatEndDay);
     }
-    
-    /**
-     * 获取星期几（0-6，其中0表示星期日）
-     */
-    private int getDayOfWeek(Date date) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
-        return dayOfWeek - 1; // 转换为0-6，其中0表示星期日
+    private int getDayOfWeek(LocalDateTime date) {
+        if (date == null) {
+            throw new IllegalArgumentException("Date must not be null");
+        }
+        DayOfWeek dayOfWeek = date.getDayOfWeek(); // 获取 DayOfWeek 枚举 (MONDAY=1, ..., SUNDAY=7)
+        int isoValue = dayOfWeek.getValue();       // 获取 ISO 值 (1-7)
+        return isoValue % 7;
     }
-    
+
+
     /**
      * 检查重复键是否包含指定的键
      */
