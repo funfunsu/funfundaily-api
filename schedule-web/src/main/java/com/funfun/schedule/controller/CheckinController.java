@@ -4,28 +4,28 @@ import com.funfun.schedule.anno.RequiredDataPermission;
 import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.CheckinRecordDTO;
 import com.funfun.schedule.dto.CheckinRequest;
+import com.funfun.schedule.dto.GetCheckinRequest;
+import com.funfun.schedule.dto.QueryScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.dto.schedule.GetScheduleItemRequest;
 import com.funfun.schedule.enums.GroupRole;
-import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.CheckinService;
 import com.funfun.schedule.service.ScheduleItemService;
-import com.funfun.schedule.util.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.text.ParseException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/checkin")
 public class CheckinController {
-    // 定义你期望的日期时间格式
-    private static final DateTimeFormatter CUSTOM_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Autowired
     private CheckinService checkinService;
@@ -36,10 +36,6 @@ public class CheckinController {
     @PostMapping("/task/complete")
     @RequiredDataPermission
     public CommonResponse<?> checkIn(@RequestBody CheckinRequest requestDto) {
-        if (requestDto.getTaskTime()!= null && requestDto.getTaskTime().isAfter(LocalDateTime.now())){
-            CommonException.NOT_ALLOWED.throwsError("还没到打卡时间");
-        }
-
         CheckinRecordDTO checkinRecordDTO = new CheckinRecordDTO();
         checkinRecordDTO.setGroupId(Long.valueOf(requestDto.getGroupId()));
         checkinRecordDTO.setUserId(Long.valueOf(requestDto.getTargetUserId()));
@@ -51,48 +47,82 @@ public class CheckinController {
         Long recordId = checkinService.performCheckin(checkinRecordDTO);
         return CommonResponse.success(recordId);
     }
-    @GetMapping("/list")
-    @Deprecated
-    public CommonResponse<?> listCheckIn(
-            @RequestParam(required = false) String groupId,
-            @RequestParam(required = false) String userId,
-            @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate) {
-        LocalDate localDate = LocalDate.parse(fromDate, CUSTOM_FORMATTER);
-        LocalDateTime from = localDate.atStartOfDay();
-        LocalDateTime to = LocalDate.parse(toDate, CUSTOM_FORMATTER).atStartOfDay();
-        Long groupIdLong = Long.valueOf(groupId);
-        Long userIdLong = Long.valueOf(userId);
-        return CommonResponse.success(checkinService.getRecordList(groupIdLong,userIdLong,from,to));
-    }
-    @PostMapping("/list")
-    @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
-    public CommonResponse<?> getCheckInRecords(@RequestBody GetScheduleItemRequest request) {
-        LocalDateTime from = DateUtil.getStartOfDay(request.getFromDate());
-        LocalDateTime to = DateUtil.getEndOfDay(request.getFromDate());
-        Long groupIdLong = Long.valueOf(request.getGroupId());
-        Long userIdLong = Long.valueOf(request.getTargetUserId());
-        return CommonResponse.success(checkinService.getRecordList(groupIdLong,userIdLong,from,to));
-    }
-
 
     /**
-     * 查询所有日程项
-     * @return 日程项列表和HTTP状态码
+     * 当日范围内的 checkin 记录查询；可选 taskId 过滤。
      */
-    @PostMapping("/task/list")
-    @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
-    public CommonResponse<?> getTasks(@RequestBody GetScheduleItemRequest request) {
-        // 检查必要参数
-        if (request.getGroupId() == null &&  request.getTargetUserId() == null) {
-            CommonException.DATA_INVALID.throwsError("groupId and userId are required");
-        }
-        Long groupIdLong = request.getGroupId() == null? null : Long.valueOf(request.getGroupId());
-        Long userIdLong = request.getGroupId() == null? null : Long.valueOf(request.getTargetUserId());
-
-        List<ScheduleListItemDTO> scheduleItemsByDate =
-                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), ScheduleItemType.task);
-        return CommonResponse.success(scheduleItemsByDate);
+    @PostMapping("/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<List<CheckinRecordDTO>> getCheckInRecords(@RequestBody GetScheduleItemRequest request) {
+        Long groupIdLong = Long.valueOf(request.getGroupId());
+        Long userIdLong = Long.valueOf(request.getTargetUserId());
+        Long taskId = request.getTaskId() != null ? Long.valueOf(request.getTaskId()) : null;
+        java.time.LocalDate from = request.getFromDate() != null ? request.getFromDate().toLocalDate() : null;
+        java.time.LocalDate to = request.getToDate() != null ? request.getToDate().toLocalDate() : null;
+        return CommonResponse.success(checkinService.getRecordList(groupIdLong, userIdLong, taskId, from, to));
     }
 
+    /**
+     * 按 taskKey 列表查询：直接按 task_key 列匹配。
+     */
+    @PostMapping("/listV2")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<List<CheckinRecordDTO>> getCheckInRecordV2(@RequestBody GetCheckinRequest request) {
+        Long groupIdLong = Long.valueOf(request.getGroupId());
+        Long userIdLong = Long.valueOf(request.getTargetUserId());
+        java.util.Set<String> keys = request.getTaskKeys() == null ? java.util.Collections.emptySet()
+                : new java.util.HashSet<>(request.getTaskKeys());
+        return CommonResponse.success(checkinService.getRecordList(groupIdLong, userIdLong, keys));
+    }
+
+    /**
+     * 按 taskIds / parentIds 直接拉对应 ScheduleItem 列表（不按日期分组）。
+     */
+    @PostMapping("/task/listV2")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<?> getTaskList(@RequestBody GetScheduleItemRequest request) {
+        if (request.getTaskIds() != null && !request.getTaskIds().isEmpty()) {
+            List<Long> ids = request.getTaskIds().stream().map(Long::valueOf).collect(Collectors.toList());
+            return CommonResponse.success(scheduleItemService.getItemList(ids));
+        }
+        if (request.getParentIds() != null && !request.getParentIds().isEmpty()) {
+            List<Long> ids = request.getParentIds().stream().map(Long::valueOf).collect(Collectors.toList());
+            return CommonResponse.success(scheduleItemService.getItemListByParentIds(ids));
+        }
+        CommonException.DATA_INVALID.throwsError();
+        return null;
+    }
+
+    /**
+     * 任务列表查询：支持
+     *   - 按日期范围（fromDate/toDate + scheduleItemType）
+     *   - 按 taskIds
+     *   - 按 parentIds
+     */
+    @PostMapping("/task/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<?> getTasks(@RequestBody GetScheduleItemRequest request) throws ParseException {
+        if (request.getGroupId() == null && request.getTargetUserId() == null
+                && (request.getTaskIds() == null || request.getTaskIds().isEmpty())
+                && (request.getParentIds() == null || request.getParentIds().isEmpty())) {
+            CommonException.DATA_INVALID.throwsError("groupId/userId or taskIds/parentIds are required");
+        }
+        Long groupIdLong = request.getGroupId() == null ? null : Long.valueOf(request.getGroupId());
+        Long userIdLong = request.getTargetUserId() == null ? null : Long.valueOf(request.getTargetUserId());
+
+        QueryScheduleItemDTO query = new QueryScheduleItemDTO();
+        query.setFromDate(request.getFromDate());
+        query.setToDate(request.getToDate());
+        // task/list 入口语义就是 task；维持原版硬编码
+        query.setScheduleItemType(com.funfun.schedule.enums.ScheduleItemType.task);
+        if (request.getTaskIds() != null && !request.getTaskIds().isEmpty()) {
+            query.setTaskIds(request.getTaskIds().stream().map(Long::valueOf).collect(Collectors.toList()));
+        } else if (request.getParentIds() != null && !request.getParentIds().isEmpty()) {
+            query.setParentIds(request.getParentIds().stream().map(Long::valueOf).collect(Collectors.toList()));
+        }
+
+        List<ScheduleListItemDTO> scheduleItemsByDate =
+                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, query);
+        return CommonResponse.success(scheduleItemsByDate);
+    }
 }

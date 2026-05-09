@@ -1,35 +1,40 @@
 package com.funfun.schedule.service.impl;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.funfun.schedule.dto.CheckinRecordDTO;
 import com.funfun.schedule.dto.ScheduleItemDTO;
+import com.funfun.schedule.dto.ScheduleItemUpdateScope;
+import com.funfun.schedule.dto.TransactionFlowDTO;
 import com.funfun.schedule.entity.CheckinRecord;
-import com.funfun.schedule.entity.ScoreFlow;
-import com.funfun.schedule.enums.ScoreFlowLabel;
-import com.funfun.schedule.exception.CommonException;
+import com.funfun.schedule.enums.FlowType;
+import com.funfun.schedule.enums.TransactionType;
 import com.funfun.schedule.mapper.CheckinRecordMapper;
 import com.funfun.schedule.repository.CheckinRecordRepository;
-import com.funfun.schedule.repository.ScoreFlowRepository;
 import com.funfun.schedule.service.CheckinService;
-import com.funfun.schedule.service.GroupMemberService;
 import com.funfun.schedule.service.ScheduleItemService;
+import com.funfun.schedule.service.TransactionFlowService;
 import com.funfun.schedule.util.DateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.transaction.Transactional;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class CheckinServiceImpl implements CheckinService {
 
     private static final Logger logger = LoggerFactory.getLogger(CheckinServiceImpl.class);
+
+    private static final String SCORE_KEY = "score";
+    private static final String TOTAL_COUNT_KEY = "totalCount";
 
     @Autowired
     private CheckinRecordRepository checkinRecordRepository;
@@ -38,121 +43,137 @@ public class CheckinServiceImpl implements CheckinService {
     private ScheduleItemService scheduleItemService;
 
     @Autowired
-    private GroupMemberService groupMemberService;
-
-    @Autowired
-    private ScoreFlowRepository scoreFlowRepository;
-
-    @Autowired
     private CheckinRecordMapper checkinRecordMapper;
 
-    private static final String scoreKey = "score";
-
-
-    private Integer getScore(Map<String,Object> extraMap){
-        if (extraMap == null || extraMap.get(scoreKey) == null){
-            return 0;
-        }
-        return (Integer)extraMap.get(scoreKey);
-    }
+    @Autowired
+    private TransactionFlowService transactionFlowService;
 
     @Override
-    @Transactional // 确保打卡和积分记录在同一事务中
+    @Transactional(rollbackFor = Exception.class)
     public Long performCheckin(CheckinRecordDTO requestDto) {
-        if (requestDto.getTaskTime() == null){
+        if (requestDto.getTaskTime() == null) {
             requestDto.setTaskTime(DateUtil.getStartOfDay(LocalDateTime.now()));
         }
-
-        Long userId = requestDto.getUserId(); // 从安全上下文获取更佳
+        Long userId = requestDto.getUserId();
         Long taskId = requestDto.getTaskId();
         Long groupId = requestDto.getGroupId();
-        Long operatorId = requestDto.getOperatorId(); // 操作人，通常是用户自己
+        Long operatorId = requestDto.getOperatorId();
 
         ScheduleItemDTO scheduleItemDTO = scheduleItemService.getScheduleItemById(taskId);
-        requestDto.setExtra(requestDto.getExtra());
-
-        // --- 1. 前置校验 (简化版) ---
-        // 在实际应用中，你应该在这里调用 TaskService, UserService, GroupService 来确认
-        // - Task 是否存在且有效
-        // - User 是否存在
-        // - Group 是否存在
-        // - User 是否属于该 Group
-        // - Task 是否属于该 Group
-        // - 当前时间是否在任务允许打卡的时间范围内
-        // - 用户今天是否已经打过此卡 (去重校验)
-
-        // 示例：简单的重复打卡检查
-        Optional<CheckinRecord> existingRecord = checkinRecordRepository.getByUserIdAndTaskIdAndGroupIdAndTaskTimeBetween(userId, taskId, groupId, DateUtil.getStartOfDay(requestDto.getTaskTime()), DateUtil.getEndOfDay(requestDto.getTaskTime()));
-        if (existingRecord.isPresent()) {
-            // 这里可以根据业务需求决定是抛出异常还是忽略
-            logger.warn("User {} has already checked in for task {} in group {}", userId, taskId, groupId);
-            CommonException.DATA_DUPLICATE.throwsError("已经为任务打过卡了");
+        if (scheduleItemDTO == null) {
+            throw new RuntimeException("ScheduleItem not found: " + taskId);
         }
-        // --- 2. 创建打卡记录 ---
-        CheckinRecord checkinRecord = checkinRecordMapper.toEntity(requestDto);
-        checkinRecord.setCompleteTime(LocalDateTime.now());
-        checkinRecord.setTaskTime(requestDto.getTaskTime());
-        // 如果需要记录额外信息，可以设置 extra 字段
-        // checkinRecord.setExtra(requestDto.getExtraInfo()); // 假设 requestDto 有这个字段
+        Map<String, Object> dtoExtra = scheduleItemDTO.getExtra();
+        logger.info("performCheckin: taskId={}, userId={}, groupId={}, taskExtra={}", taskId, userId, groupId, dtoExtra);
 
-        CheckinRecord savedRecord = checkinRecordRepository.save(checkinRecord);
-        logger.info("Checkin record created with ID: {}", savedRecord.getId());
+        String taskKey = scheduleItemService.getTaskKey(scheduleItemDTO, requestDto.getTaskTime().toLocalDate());
+        int existCount = checkinRecordRepository.countByGroupIdAndUserIdAndTaskKey(groupId, userId, taskKey);
+        Integer earnedScore = getInt(dtoExtra, SCORE_KEY);
+        if (earnedScore == null) earnedScore = 0;
 
-        // --- 3. 计算积分 (示例) ---
-        // Integer earnedScore = scoreCalculator.calculateForCheckin(taskId, userId); // 假设有这样的方法
-        Integer earnedScore = getScore(scheduleItemDTO.getExtra()); // 示例固定积分
-        String eventName = scheduleItemDTO.getItemTitle();
+        // 1. 写 checkin_record
+        LocalDateTime completeTime = LocalDateTime.now();
+        CheckinRecord record = checkinRecordMapper.toEntity(requestDto);
+        record.setCompleteTime(completeTime);
+        record.setTaskKey(taskKey);
 
-        // --- 4. 获取用户当前积分余额 (关键步骤!) ---
-        // 这里简化处理，假设有一个方法或表来获取最新余额
-        Integer currentBalance = groupMemberService.getMemberScore(groupId,userId); // 示例初始余额
-        int newBalance = currentBalance + earnedScore; // 计算新的余额
-
-        // --- 5. 创建积分流水记录 ---
-        ScoreFlow scoreFlow = new ScoreFlow(
-                0, // flow_type: 0 - 入账
-                earnedScore,
-                newBalance, // remain_score: 记录发生后的余额
-                userId,
-                groupId,
-                eventName,
-                ScoreFlowLabel.CompleteTask.name(),
-                operatorId // 操作人
-        );
-        // 如果需要记录额外信息，可以设置 extra 字段
-        try {
-            Map<String, Object> extraData = new HashMap<>();
-            extraData.put("checkinRecordId", savedRecord.getId());
-            // extraData.put("otherInfo", requestDto.getSomeOtherInfo());
-            scoreFlow.setExtra(JSON.toJSONString(extraData));
-        } catch (Exception e) {
-            logger.error("Failed to serialize extra data for score flow", e);
-            // 根据策略决定是否继续或回滚
+        JSONObject recordExtra = requestDto.getExtra() == null
+                ? new JSONObject()
+                : new JSONObject(requestDto.getExtra());
+        if (!recordExtra.containsKey("count")) {
+            recordExtra.put("count", existCount + 1);
         }
+        recordExtra.put("title", scheduleItemDTO.getItemTitle());
 
-        scoreFlowRepository.save(scoreFlow);
-        logger.info("Score flow record created with ID: {} for checkin ID: {}", scoreFlow.getId(), savedRecord.getId());
+        Integer totalCount = getInt(dtoExtra, TOTAL_COUNT_KEY);
+        if (totalCount == null) totalCount = 1;
+        recordExtra.put("totalCount", totalCount);
 
-        groupMemberService.updateMemberScore(groupId,userId, newBalance); // 你需要实现这个逻辑
+        // 只有"刚好达到 totalCount"那次才算最终完成 → 派积分 + 写 updateScope
+        boolean justCompleted = totalCount == existCount + 1;
+        logger.info("performCheckin scoring decision: taskKey={}, existCount={}, totalCount={}, earnedScore(beforeGate)={}, justCompleted={}",
+                taskKey, existCount, totalCount, earnedScore, justCompleted);
+        if (justCompleted) {
+            ScheduleItemUpdateScope scope = scheduleItemDTO.getUpdateScope();
+            if (scope == null) scope = new ScheduleItemUpdateScope();
+            scope.setLastCompleteTime(completeTime);
+            scheduleItemService.saveForTaskUpdate(scheduleItemDTO.getId(), scope);
+        } else {
+            earnedScore = 0;
+        }
+        recordExtra.put(SCORE_KEY, earnedScore);
+        record.setTaskTime(requestDto.getTaskTime());
+        record.setExtra(JSON.toJSONString(recordExtra));
+        CheckinRecord savedRecord = checkinRecordRepository.save(record);
+        logger.info("Checkin record created with ID: {}, will award score={}", savedRecord.getId(), earnedScore);
 
+        // 2. 派积分（INCOME 流水）
+        if (earnedScore > 0) {
+            TransactionFlowDTO flow = buildIncomeFlow(scheduleItemDTO, earnedScore, savedRecord);
+            TransactionFlowDTO saved = transactionFlowService.saveTransactionFlow(flow, groupId, userId, operatorId);
+            logger.info("TransactionFlow saved: id={}, balance={}", saved.getId(), saved.getBalance());
+        } else {
+            logger.info("No transaction flow written (earnedScore=0). justCompleted={}, taskScoreInExtra={}",
+                    justCompleted, getInt(dtoExtra, SCORE_KEY));
+        }
         return savedRecord.getId();
+    }
 
+    private static TransactionFlowDTO buildIncomeFlow(ScheduleItemDTO dto, Integer earnedScore, CheckinRecord savedRecord) {
+        TransactionFlowDTO flow = new TransactionFlowDTO();
+        flow.setFlowType(FlowType.POINTS);
+        flow.setAmount(earnedScore);
+        flow.setTransactionType(TransactionType.INCOME);
+        flow.setDescription("完成打卡：" + dto.getItemTitle());
+        JSONObject extra = new JSONObject();
+        extra.put("checkinRecordId", savedRecord.getId());
+        flow.setExtra(extra);
+        return flow;
+    }
 
+    private static Integer getInt(Map<String, Object> map, String key) {
+        if (map == null) return null;
+        Object v = map.get(key);
+        if (v == null) return null;
+        if (v instanceof Integer) return (Integer) v;
+        if (v instanceof Number) return ((Number) v).intValue();
+        try {
+            return Integer.parseInt(v.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @Override
     public List<CheckinRecordDTO> getRecordList(Long groupId, Long userId, LocalDateTime from, LocalDateTime to) {
-        // --- 参数校验 (可选但推荐) ---
         if (groupId == null || userId == null || from == null || to == null) {
             logger.warn("Invalid parameters for getRecordList: groupId={}, userId={}, from={}, to={}", groupId, userId, from, to);
-            // 可以抛出 IllegalArgumentException 或返回空列表
-            return List.of(); // 返回空列表
-            // throw new IllegalArgumentException("Parameters cannot be null");
+            return Collections.emptyList();
         }
-
-
-        // --- 调用 Repository 查询 ---
         List<CheckinRecord> records = checkinRecordRepository.findByGroupIdAndUserIdAndTaskTimeBetween(groupId, userId, from, to);
+        return checkinRecordMapper.toDTOList(records);
+    }
+
+    @Override
+    public List<CheckinRecordDTO> getRecordList(Long groupId, Long userId, Long taskId, LocalDate fromDate, LocalDate toDate) {
+        if (groupId == null || userId == null || fromDate == null || toDate == null) {
+            logger.warn("Invalid parameters for getRecordList(byTaskId): groupId={}, userId={}, taskId={}, from={}, to={}", groupId, userId, taskId, fromDate, toDate);
+            return Collections.emptyList();
+        }
+        LocalDateTime from = fromDate.atStartOfDay();
+        LocalDateTime to = toDate.atStartOfDay();
+        List<CheckinRecord> records = (taskId == null)
+                ? checkinRecordRepository.findByGroupIdAndUserIdAndTaskTimeBetween(groupId, userId, from, to)
+                : checkinRecordRepository.findByGroupIdAndUserIdAndTaskTimeBetween(groupId, userId, taskId, from, to);
+        return checkinRecordMapper.toDTOList(records);
+    }
+
+    @Override
+    public List<CheckinRecordDTO> getRecordList(Long groupId, Long userId, Set<String> taskKeys) {
+        if (groupId == null || userId == null || taskKeys == null || taskKeys.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<CheckinRecord> records = checkinRecordRepository.findByGroupIdAndUserIdAndTaskKeyIn(groupId, userId, taskKeys);
         return checkinRecordMapper.toDTOList(records);
     }
 }

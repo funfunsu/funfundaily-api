@@ -1,0 +1,43 @@
+
+-- -----------------------------------------------------------------------------
+-- 1. transaction_flow（流水统一表，前期未同步至 schedule-create-table.sql）
+-- -----------------------------------------------------------------------------
+drop table if exists transaction_flow;
+CREATE TABLE transaction_flow (
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id         BIGINT      NOT NULL                                COMMENT '群组ID',
+    user_id          BIGINT      NOT NULL                                COMMENT '用户ID',
+    transaction_type TINYINT     NOT NULL                                COMMENT '交易类型：1-收入，2-支出',
+    flow_type        TINYINT     NOT NULL DEFAULT 0                      COMMENT '流水类型：0-积分，1-现金',
+    amount           INT         NOT NULL DEFAULT 0                      COMMENT '涉及金额或积分数量，正数收入，负数支出',
+    balance          INT         NOT NULL DEFAULT 0                      COMMENT '剩余数量',
+    description      VARCHAR(255)                                        COMMENT '描述信息',
+    extra            TEXT                NULL                            COMMENT '扩展参数（JSON）',
+    operator         BIGINT      NOT NULL                                COMMENT '操作人ID',
+    created_at       TIMESTAMP            DEFAULT CURRENT_TIMESTAMP      COMMENT '创建时间',
+    updated_at       TIMESTAMP            DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_group_user_flow_created (group_id, user_id, flow_type, created_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT ='交易流水表';
+
+
+-- -----------------------------------------------------------------------------
+-- 2. schedule_item 历史增量列（task 完成态/目标关联）
+-- -----------------------------------------------------------------------------
+ALTER TABLE schedule_item
+    ADD COLUMN update_scope TEXT NULL COMMENT '更新参数（JSON，如 lastCompleteTime 等）';
+
+ALTER TABLE schedule_item
+    ADD COLUMN parent_id BIGINT DEFAULT 0 COMMENT '关联 parentItemId（任务隶属的目标 itemId）';
+
+ALTER TABLE schedule_item
+    ADD COLUMN close_status TINYINT DEFAULT 0 COMMENT '完成状态';
+
+
+-- -----------------------------------------------------------------------------
+-- 3. checkin_record 历史增量列（任务周期键）
+-- -----------------------------------------------------------------------------
+ALTER TABLE checkin_record
+    ADD COLUMN task_key VARCHAR(64) NULL COMMENT '任务key（"${taskId}:${periodKey}" 形式）';
+
+ALTER TABLE checkin_record
+    ADD KEY `idx_user_task_key` (`user_id`, `task_key`);
