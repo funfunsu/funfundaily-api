@@ -1,5 +1,5 @@
 package com.funfun.schedule.enums;
 
 public enum ScheduleItemType {
-    schedule,task
+    schedule,task,goal
 }

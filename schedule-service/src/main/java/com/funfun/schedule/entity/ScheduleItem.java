@@ -60,6 +60,21 @@ public class ScheduleItem {
     @Column(name = "label", length = 256)
     private String label; // 标签
 
+    /**
+     * update_scope 列，存放任务运行期快照（lastCompleteTime 等），JSON 字符串。
+     * mapper 负责 ScheduleItemUpdateScope ↔ String 的转换。
+     */
+    @Column(name = "update_scope", columnDefinition = "TEXT")
+    private String updateScope;
+
+    /** 关联 parentItemId，比如任务隶属的目标 itemId */
+    @Column(name = "parent_id")
+    private Long parentId;
+
+    /** 完成状态，0=进行中 / 1=已完成 等（含义业务定义） */
+    @Column(name = "close_status", columnDefinition = "TINYINT")
+    private Integer closeStatus;
+
     @Column(name = "create_by", nullable = false)
     private Long createBy; // 人员ID，非空
     @Column(name = "update_by", nullable = false)

@@ -1,11 +1,14 @@
 package com.funfun.schedule.service;
 
+import com.funfun.schedule.dto.QueryScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleItemDTO;
+import com.funfun.schedule.dto.ScheduleItemUpdateScope;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
 import com.funfun.schedule.enums.ScheduleItemType;
 
 import java.text.ParseException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -104,4 +107,34 @@ public interface ScheduleItemService {
 
 
     List<ScheduleListItemDTO> transferToDateScheduleItems(String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException;
+
+    /**
+     * 与上面的 transferToDateScheduleItems 相同，但额外带 ScheduleItemType
+     * 用于在 filterAndFillSchedules 阶段计算 showExtra（itemKey/dueDate）。
+     */
+    List<ScheduleListItemDTO> transferToDateScheduleItems(ScheduleItemType scheduleItemType, String fromDate, String toDate, List<ScheduleItemDTO> list) throws ParseException;
+
+    /** 按 taskIds 批量取 ScheduleItem */
+    List<ScheduleItemDTO> getItemList(List<Long> taskIds);
+
+    /** 按 parentIds 批量取 ScheduleItem（依赖 ScheduleItem.parentId 列） */
+    List<ScheduleItemDTO> getItemListByParentIds(List<Long> parentIds);
+
+    /**
+     * 一站式查询：根据 QueryScheduleItemDTO 决定走哪条路径
+     *   有 taskIds  → byIds
+     *   有 parentIds → byParentIds
+     *   否则        → fromDate/toDate + scheduleItemType
+     */
+    List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, QueryScheduleItemDTO queryScheduleItemDTO) throws ParseException;
+
+    /**
+     * 任务键计算：daily="${id}:${yyyy-MM-dd}" / weekly="${id}:${yyyy-Www}" / monthly="${id}:${yyyy-MM}" / yearly="${id}:${yyyy}" / 其他="${id}:"
+     */
+    String getTaskKey(ScheduleItemDTO dto, LocalDate taskTime);
+
+    /**
+     * 持久化任务运行期快照（写入 schedule_item.update_scope 列）。
+     */
+    ScheduleItem saveForTaskUpdate(Long id, ScheduleItemUpdateScope updateScope);
 }

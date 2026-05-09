@@ -82,4 +82,24 @@ public class ScheduleItemDTO {
 
 
     private Map<String,Object> extra;
+
+    /**
+     * 后端按当日 + RepeatType 计算出的展示辅助字段：
+     *   itemKey         当前展示日所对应的"周期实例"键 (eg. "${id}:${yyyy-MM-dd}")
+     *   lastCompleteKey 最近一次完成对应的同格式键
+     *   dueDate         排序用的截止日期 (yyyy-MM-dd)
+     */
+    private Map<String,Object> showExtra;
+
+    /**
+     * 任务运行期快照（持久化在 schedule_item.update_scope 列）。
+     * 主要用于 isTaskUndo 判断"今天刚完成的任务仍然展示"。
+     */
+    private ScheduleItemUpdateScope updateScope;
+
+    /** 关联 parentItemId（任务隶属的目标 itemId） */
+    private Long parentId;
+
+    /** 完成状态 */
+    private Integer closeStatus;
 }

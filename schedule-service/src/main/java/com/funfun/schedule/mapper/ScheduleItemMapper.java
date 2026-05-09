@@ -1,7 +1,9 @@
 package com.funfun.schedule.mapper;
 
-import com.funfun.schedule.entity.ScheduleItem;
+import com.alibaba.fastjson2.JSON;
 import com.funfun.schedule.dto.ScheduleItemDTO;
+import com.funfun.schedule.dto.ScheduleItemUpdateScope;
+import com.funfun.schedule.entity.ScheduleItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -30,6 +32,7 @@ public interface ScheduleItemMapper extends BaseMapper{
      */
     @Mapping(source = "repeatKeys", target = "repeatKeys", qualifiedByName = "stringToList")
     @Mapping(source = "extra", target = "extra", qualifiedByName = "stringToMap")
+    @Mapping(source = "updateScope", target = "updateScope", qualifiedByName = "stringToUpdateScope")
     ScheduleItemDTO toDTO(ScheduleItem scheduleItem);
 
     /**
@@ -41,6 +44,7 @@ public interface ScheduleItemMapper extends BaseMapper{
     @Mapping(target = "userId",ignore = true)
     @Mapping(target = "groupId",ignore = true)
     @Mapping(source = "extra", target = "extra", qualifiedByName = "mapToString")
+    @Mapping(source = "updateScope", target = "updateScope", qualifiedByName = "updateScopeToString")
     ScheduleItem toEntity(ScheduleItemDTO scheduleItemDTO);
 
     /**
@@ -91,5 +95,23 @@ public interface ScheduleItemMapper extends BaseMapper{
                 .filter(Objects::nonNull)
                 .filter(s -> !s.trim().isEmpty())
                 .collect(Collectors.joining(","));
+    }
+
+    /**
+     * update_scope 列 (TEXT, JSON 串) ↔ ScheduleItemUpdateScope 对象。
+     */
+    @Named("stringToUpdateScope")
+    default ScheduleItemUpdateScope stringToUpdateScope(String value) {
+        if (value == null || value.isEmpty()) return null;
+        try {
+            return JSON.parseObject(value, ScheduleItemUpdateScope.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @Named("updateScopeToString")
+    default String updateScopeToString(ScheduleItemUpdateScope scope) {
+        return scope == null ? null : JSON.toJSONString(scope);
     }
 }

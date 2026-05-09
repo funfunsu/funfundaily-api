@@ -113,8 +113,11 @@ public class ScheduleItemController {
             //默认是查自己
             userIdLong = UserContext.getUserId();
         }
+        ScheduleItemType itemType = request.getScheduleItemType() != null
+                ? request.getScheduleItemType()
+                : ScheduleItemType.schedule;
         List<ScheduleListItemDTO> scheduleItemsByDate =
-                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), ScheduleItemType.schedule);
+                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), itemType);
         return CommonResponse.success(scheduleItemsByDate);
     }
 
