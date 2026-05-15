@@ -1,7 +1,6 @@
 package com.funfun.schedule.dto;
 
-import com.funfun.schedule.enums.PlanType;
-import com.funfun.schedule.enums.StockSubType;
+import com.funfun.schedule.enums.AssetMarket;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -9,7 +8,8 @@ import java.math.BigDecimal;
 /**
  * 计划标的批量保存项。
  *
- * <p>对应 API-4 请求体 items 数组中的单个标的。
+ * <p>新模型：「股票名 + 市场 + 用户目标盈利」三件套；
+ * 「已计划盈利」与「已实现盈利」由统计层从各批次聚合，不由用户输入。
  */
 @Data
 public class SaveFinancialPlanAssetItem {
@@ -17,29 +17,14 @@ public class SaveFinancialPlanAssetItem {
     /** 已存在标的的主键，新增时为空。 */
     private Long assetId;
 
-    /** 标的类型：SAVINGS / STOCK。 */
-    private PlanType assetType;
+    /** 股票名称。 */
+    private String stockName;
 
-    /** 标的代码，组合 (planId, assetCode, assetType) 不可重复。 */
-    private String assetCode;
+    /** 所属市场。 */
+    private AssetMarket market;
 
-    /** 标的名称。 */
-    private String assetName;
-
-    /** 股票子类型：EQUITY / OPTION，仅股票类型有意义。 */
-    private StockSubType stockSubType;
-
-    /** 计划买入单价。 */
-    private BigDecimal planBuyPrice;
-
-    /** 计划卖出单价。 */
-    private BigDecimal planSellPrice;
-
-    /** 计划买入数量。 */
-    private BigDecimal planQuantity;
-
-    /** 计价币种。 */
-    private String currency;
+    /** 用户设定的目标盈利。 */
+    private BigDecimal targetProfit;
 
     /** 排序序号。 */
     private Integer sequenceNo;

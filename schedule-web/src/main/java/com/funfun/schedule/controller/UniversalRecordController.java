@@ -2,7 +2,6 @@ package com.funfun.schedule.controller;
 
 import com.funfun.schedule.dto.UniversalRecordDTO;
 import com.funfun.schedule.dto.schedule.GetUniversalRecordRequest;
-import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.UniversalRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +28,7 @@ public class UniversalRecordController {
      */
     @PostMapping("/list")
     public CommonResponse<List<UniversalRecordDTO>> getRecordsBySceneAndBusinessKey(@RequestBody  GetUniversalRecordRequest request) {
-        List<UniversalRecordDTO> records = universalRecordService.getRecordsBySceneAndBusinessKey(request.getScene(), request.getBusinessKey());
+        List<UniversalRecordDTO> records = universalRecordService.getRecords(request.getScene(), request.getSceneVariables());
         return CommonResponse.success(records);
     }
 
@@ -40,11 +39,8 @@ public class UniversalRecordController {
      */
     @PostMapping("/get")
     public CommonResponse<UniversalRecordDTO> getRecordBySceneVarsAndBusinessKey(@RequestBody GetUniversalRecordRequest request) {
-        Optional<UniversalRecordDTO> recordOpt = universalRecordService.getRecordBySceneVarsAndBusinessKey(request.getScene(), request.getSceneVariables(), request.getBusinessKey());
-        if (recordOpt.isEmpty()){
-            CommonResponse.success(null);
-        }
-        return CommonResponse.success(recordOpt.get());
+        UniversalRecordDTO record = universalRecordService.getRecord(request.getScene(), request.getSceneVariables(), request.getBusinessKey());
+        return CommonResponse.success(record);
     }
 
     /**

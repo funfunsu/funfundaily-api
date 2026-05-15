@@ -32,3 +32,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### 本地部署脚本 ###
+deploy.sh

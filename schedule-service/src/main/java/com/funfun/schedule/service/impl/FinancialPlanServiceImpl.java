@@ -25,6 +25,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -60,8 +61,10 @@ public class FinancialPlanServiceImpl implements FinancialPlanService {
         plan.setPlanName(command.getPlanName().trim());
         plan.setPlanType(command.getPlanType());
         plan.setStockSubType(resolveStockSubType(command.getPlanType(), command.getStockSubType()));
-        plan.setStatus(PlanStatus.DRAFT);
+        // 新模型：不保留草稿态，新建即生效；过期/归档由前端按 endDate 与 status 判定。
+        plan.setStatus(PlanStatus.ACTIVE);
         plan.setRemark(command.getRemark());
+        plan.setTargetProfit(command.getTargetProfit() != null ? command.getTargetProfit() : BigDecimal.ZERO);
 
         // INV-1：根据 timeRangeType 派生或校验起止日期。
         applyTimeRange(plan,
@@ -104,6 +107,9 @@ public class FinancialPlanServiceImpl implements FinancialPlanService {
         if (command.getStatus() != null) {
             plan.setStatus(command.getStatus());
         }
+        if (command.getTargetProfit() != null) {
+            plan.setTargetProfit(command.getTargetProfit());
+        }
         if (command.getTimeRangeType() != null) {
             applyTimeRange(plan,
                     command.getTimeRangeType(),
@@ -115,17 +121,18 @@ public class FinancialPlanServiceImpl implements FinancialPlanService {
         return saveWithOptimisticLock(plan);
     }
 
-    /** 归档（停用）理财计划。 */
+    /**
+     * 归档（停用）理财计划。
+     *
+     * <p>幂等：忽略客户端传入的 version，重复调用不会报错；
+     * 同时把 endDate 设为「归档时间」（今天），方便归档后的筛选与统计。
+     */
     @Override
     @Transactional
     public FinancialPlan archivePlan(Long planId, Integer version) {
         FinancialPlan plan = loadPlanForWrite(planId);
-        ensureVersionMatches(plan, version);
-
-        if (plan.getStatus() == PlanStatus.ARCHIVED) {
-            FinancialPlanError.FP_PLAN_ALREADY_ARCHIVED.throwsError("planId=" + planId);
-        }
         plan.setStatus(PlanStatus.ARCHIVED);
+        plan.setEndDate(LocalDate.now());
         return saveWithOptimisticLock(plan);
     }
 

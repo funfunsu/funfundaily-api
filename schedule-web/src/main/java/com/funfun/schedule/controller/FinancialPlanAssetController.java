@@ -20,13 +20,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
  * 计划标的控制器（API-4 / API-5）。
  *
- * <p>仅做权限前置 + DTO 转换；批量校验、INV-2 等不变量在 service 层处理。
+ * <p>新模型：仅 stockName / market / targetProfit 三字段。
  */
 @RestController
 @RequestMapping("/api/financial-plans")
@@ -62,7 +61,7 @@ public class FinancialPlanAssetController {
     }
 
     /**
-     * API-5：调整计划标的参数。
+     * API-5：调整计划标的参数（股票名 / 市场 / 目标利润）。
      */
     @PutMapping("/{planId}/assets/{assetId}")
     public CommonResponse<UpdateFinancialPlanAssetParamsResponse> updateAssetParams(
@@ -81,26 +80,23 @@ public class FinancialPlanAssetController {
         permissionChecker.loadPlanWithAccess(planId, traceId);
 
         UpdateFinancialPlanAssetParamsCommand command = new UpdateFinancialPlanAssetParamsCommand();
-        command.setPlanBuyPrice(request.getPlanBuyPrice());
-        command.setPlanSellPrice(request.getPlanSellPrice());
-        command.setPlanQuantity(request.getPlanQuantity());
+        command.setStockName(request.getStockName());
+        command.setMarket(request.getMarket());
+        command.setTargetProfit(request.getTargetProfit());
         command.setVersion(request.getVersion());
 
         FinancialPlanAsset asset = planAssetService.updateAssetParams(planId, assetId, command);
         return CommonResponse.success(toAssetParamsResponse(asset));
     }
 
-    /** entity → 标的参数响应（含派生 targetProfit）。 */
+    /** entity → 标的参数响应。 */
     private UpdateFinancialPlanAssetParamsResponse toAssetParamsResponse(FinancialPlanAsset asset) {
         UpdateFinancialPlanAssetParamsResponse response = new UpdateFinancialPlanAssetParamsResponse();
         response.setAssetId(asset.getAssetId());
-        response.setPlanBuyPrice(asset.getPlanBuyPrice());
-        response.setPlanSellPrice(asset.getPlanSellPrice());
-        response.setPlanQuantity(asset.getPlanQuantity());
-        BigDecimal targetProfit = asset.getPlanSellPrice()
-                .subtract(asset.getPlanBuyPrice())
-                .multiply(asset.getPlanQuantity());
-        response.setTargetProfit(targetProfit);
+        response.setStockName(asset.getStockName());
+        response.setMarket(asset.getMarket());
+        response.setTargetProfit(asset.getTargetProfit());
+        response.setVersion(asset.getVersion());
         return response;
     }
 }

@@ -100,6 +100,7 @@ public class FinancialPlanController {
         command.setStartDate(request.getStartDate());
         command.setEndDate(request.getEndDate());
         command.setRemark(request.getRemark());
+        command.setTargetProfit(request.getTargetProfit());
 
         FinancialPlan plan = financialPlanService.createPlan(command);
         return CommonResponse.success(toIdResponse(plan));
@@ -127,6 +128,7 @@ public class FinancialPlanController {
         command.setStartDate(request.getStartDate());
         command.setEndDate(request.getEndDate());
         command.setRemark(request.getRemark());
+        command.setTargetProfit(request.getTargetProfit());
         command.setVersion(request.getVersion());
 
         FinancialPlan plan = financialPlanService.updatePlan(planId, command);

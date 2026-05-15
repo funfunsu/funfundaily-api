@@ -3,6 +3,7 @@ package com.funfun.schedule.service;
 import com.funfun.schedule.dto.CreateRealizationBatchCommand;
 import com.funfun.schedule.dto.RecordRealizationBuyCommand;
 import com.funfun.schedule.dto.RecordRealizationSellCommand;
+import com.funfun.schedule.dto.UpdateRealizationBatchCommand;
 import com.funfun.schedule.entity.RealizationBatch;
 
 /**
@@ -42,4 +43,16 @@ public interface FinancialPlanRealizationService {
      * @return 更新后的批次实体
      */
     RealizationBatch recordSell(Long planId, Long batchId, RecordRealizationSellCommand command);
+
+    /**
+     * 编辑兑现批次的计划参数（数量 / 价格 / 方向 / 到期 / 名称 / 备注）。
+     *
+     * <p>batchType 不可变；调整 quantity 时不得小于已登记的累计买入/卖出数量。
+     *
+     * @param planId  计划主键
+     * @param batchId 批次主键
+     * @param command 编辑命令
+     * @return 更新后的批次实体
+     */
+    RealizationBatch updateBatch(Long planId, Long batchId, UpdateRealizationBatchCommand command);
 }

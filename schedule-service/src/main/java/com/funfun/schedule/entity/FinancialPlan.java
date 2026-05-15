@@ -11,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.Where;
 
 import javax.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -69,6 +70,10 @@ public class FinancialPlan {
 
     @Column(name = "remark", length = 1024)
     private String remark;
+
+    /** 用户在计划层设定的目标盈利；计划/实际完成度均按这个数计算。 */
+    @Column(name = "target_profit", nullable = false, precision = 24, scale = 8)
+    private BigDecimal targetProfit;
 
     @Version
     @Column(name = "version", nullable = false)

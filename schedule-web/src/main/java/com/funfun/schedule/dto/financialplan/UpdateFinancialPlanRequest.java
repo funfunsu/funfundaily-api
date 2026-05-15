@@ -4,6 +4,7 @@ import com.funfun.schedule.enums.PlanStatus;
 import com.funfun.schedule.enums.TimeRangeType;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -32,6 +33,9 @@ public class UpdateFinancialPlanRequest {
 
     /** 备注。 */
     private String remark;
+
+    /** 用户设定的目标盈利。 */
+    private BigDecimal targetProfit;
 
     /** 乐观锁版本号（必填）。 */
     private Integer version;

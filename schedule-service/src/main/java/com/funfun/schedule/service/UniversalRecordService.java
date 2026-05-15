@@ -4,9 +4,12 @@ import com.alibaba.fastjson2.JSONObject;
 import com.funfun.schedule.context.UserContext;
 import com.funfun.schedule.dto.UniversalRecordDTO;
 import com.funfun.schedule.entity.UniversalRecord;
+import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.mapper.UniversalRecordMapper;
 import com.funfun.schedule.repository.UniversalRecordRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +19,7 @@ import java.util.stream.Collectors;
 /**
  * 通用记录服务层
  */
+@Slf4j
 @Service
 public class UniversalRecordService {
 
@@ -25,31 +29,48 @@ public class UniversalRecordService {
     @Autowired
     private UniversalRecordMapper mapper; // 注入 Mapper
 
-    /**
-     * 根据场景和业务关键字查询范围数据 (返回 DTO)
-     *
-     * @param scene       场景
-     * @param businessKey 业务关键字
-     * @return 符合条件的记录响应 DTO 列表
-     */
-    public List<UniversalRecordDTO> getRecordsBySceneAndBusinessKey(String scene, String businessKey) {
-        List<UniversalRecord> entities = universalRecordRepository.findBySceneAndBusinessKey(scene, businessKey);
-        return entities.stream()
-                .map(mapper::toDTO) // 转换为 DTO
-                .collect(Collectors.toList());
-    }
+    final static String SCENE_SYSTEM = "system";
+    final static String DEFAULT_BIZ_KEY = "default";
 
     /**
      * 根据场景、场景变量和业务关键字查找具体数据 (返回 DTO)
-     *
-     * @param scene           场景
-     * @param sceneVariables  场景变量 (字符串)
+     * @param sceneVar     dd
      * @param businessKey     业务关键字
      * @return Optional 包装的单个记录响应 DTO
      */
-    public Optional<UniversalRecordDTO> getRecordBySceneVarsAndBusinessKey(String scene, String sceneVariables, String businessKey) {
-        Optional<UniversalRecord> entityOpt = universalRecordRepository.findBySceneAndSceneVariablesAndBusinessKey(scene, sceneVariables, businessKey);
-        return entityOpt.map(mapper::toDTO); // 如果存在则转换为 DTO
+    public UniversalRecordDTO getRecord(String scene,String sceneVar,String businessKey) {
+        Optional<UniversalRecord> entityOpt = universalRecordRepository.findBySceneAndSceneVarAndBusinessKey(scene, sceneVar, businessKey);
+        if(entityOpt.isPresent()){
+            return mapper.toDTO(entityOpt.get());
+        }
+        if (!DEFAULT_BIZ_KEY.equals(businessKey)) {
+            log.info("加载默认配置{}{}",sceneVar,businessKey);
+            entityOpt = universalRecordRepository.findBySceneAndSceneVarAndBusinessKey(SCENE_SYSTEM, sceneVar,DEFAULT_BIZ_KEY);
+        }
+        // 如果存在则转换为 DTO
+        return entityOpt.map(universalRecord -> mapper.toDTO(universalRecord)).orElse(null);
+    }
+    /**
+     * 根据场景、场景变量和业务关键字查找具体数据 (返回 DTO)
+     * @param sceneVar     dd
+     * @param businessKey     业务关键字
+     * @return Optional 包装的单个记录响应 DTO
+     */
+    public UniversalRecordDTO getSystemConfigData(String sceneVar,String businessKey) {Optional<UniversalRecord> entityOpt = universalRecordRepository.findBySceneAndSceneVarAndBusinessKey(SCENE_SYSTEM, sceneVar, businessKey);
+        UniversalRecordDTO recordDTO = getRecord(SCENE_SYSTEM,sceneVar,businessKey);
+        if (recordDTO != null){
+            return recordDTO;
+        }
+        CommonException.SERVER_ERROR.throwsError("配置不存在"+sceneVar);
+        return null; // 如果存在则转换为 DTO
+    }
+    /**
+     * 根据场景、场景变量和业务关键字查找具体数据 (返回 DTO)
+     * @param sceneVar     业务关键字
+     * @return Optional 包装的单个记录响应 DTO
+     */
+    public UniversalRecordDTO getSystemConfigData(String sceneVar) {
+        return getSystemConfigData(sceneVar,DEFAULT_BIZ_KEY);
     }
 
     /**
@@ -74,27 +95,28 @@ public class UniversalRecordService {
     /**
      * 更新现有记录 (使用 DTO)
      *
-     * @param id  要更新的记录 ID
      * @param dto 包含更新数据的 DTO
      * @return Optional 包装的更新后的记录响应 DTO
      */
-    public Optional<UniversalRecordDTO> updateRecord(Long id, UniversalRecordDTO dto) {
+    public UniversalRecordDTO saveRecord(UniversalRecordDTO dto) {
         // 1. 根据 ID 查找现有记录
-        Optional<UniversalRecord> existingEntityOpt = universalRecordRepository.findById(id);
+        Optional<UniversalRecord> existingEntityOpt = universalRecordRepository.findBySceneAndSceneVarAndBusinessKey(dto.getScene(),dto.getSceneVar(),dto.getBusinessKey());
 
         if (existingEntityOpt.isPresent()) {
             UniversalRecord existingEntity = existingEntityOpt.get();
-            existingEntity.setContent(JSONObject.toJSONString(dto.getContent()));
+            existingEntity.setContent(dto.getContent());
             existingEntity.setExtra(JSONObject.toJSONString(dto.getExtra()));
             existingEntity.setUpdatedBy(UserContext.getUserId());
             // 4. 保存更新后的 Entity
             UniversalRecord updatedEntity = universalRecordRepository.save(existingEntity);
-
             // 5. 将更新后的 Entity 转换为 Response DTO 并返回
-            return Optional.of(mapper.toDTO(updatedEntity));
+            return mapper.toDTO(updatedEntity);
         } else {
-            // 记录不存在
-            return Optional.empty();
+            UniversalRecord universalRecord = mapper.toEntity(dto);
+            universalRecord.setCreatedBy(UserContext.getUserId());
+            universalRecord.setUpdatedBy(UserContext.getUserId());
+            universalRecord  = universalRecordRepository.save(universalRecord);
+            return mapper.toDTO(universalRecord);
         }
     }
 
@@ -123,10 +145,8 @@ public class UniversalRecordService {
      *
      * @return 所有记录响应 DTO 列表
      */
-    public List<UniversalRecordDTO> getAllRecords() {
-        List<UniversalRecord> entities = universalRecordRepository.findAll();
-        return entities.stream()
-                .map(mapper::toDTO) // 转换为 DTO
-                .collect(Collectors.toList());
+    public List<UniversalRecordDTO> getRecords( String scene, String sceneVar) {
+        List<UniversalRecord> entities = universalRecordRepository.findRangeBySceneAndSceneVar(scene,sceneVar);
+        return mapper.toDTOList(entities);
     }
 }

@@ -1,5 +1,6 @@
 package com.funfun.schedule.dto.financialplan;
 
+import com.funfun.schedule.enums.AssetMarket;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -13,15 +14,15 @@ public class UpdateFinancialPlanAssetParamsResponse {
     /** 标的主键。 */
     private Long assetId;
 
-    /** 计划买入单价。 */
-    private BigDecimal planBuyPrice;
+    /** 股票名称。 */
+    private String stockName;
 
-    /** 计划卖出单价。 */
-    private BigDecimal planSellPrice;
+    /** 所属市场。 */
+    private AssetMarket market;
 
-    /** 计划买入数量。 */
-    private BigDecimal planQuantity;
-
-    /** 目标盈利 = (planSellPrice − planBuyPrice) × planQuantity。 */
+    /** 用户设定的目标盈利。 */
     private BigDecimal targetProfit;
+
+    /** 乐观锁版本号。 */
+    private Integer version;
 }

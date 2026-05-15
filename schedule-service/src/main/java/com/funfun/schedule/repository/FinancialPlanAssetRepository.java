@@ -1,7 +1,7 @@
 package com.funfun.schedule.repository;
 
 import com.funfun.schedule.entity.FinancialPlanAsset;
-import com.funfun.schedule.enums.PlanType;
+import com.funfun.schedule.enums.AssetMarket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -25,11 +25,11 @@ public interface FinancialPlanAssetRepository extends JpaRepository<FinancialPla
     Optional<FinancialPlanAsset> findByAssetIdAndDeletedFalse(Long assetId);
 
     /**
-     * 按计划和唯一键查询标的。
+     * 按 (plan, stockName, market) 唯一组合查询；用于新增前的去重判断。
      */
-    Optional<FinancialPlanAsset> findByPlanIdAndAssetCodeAndAssetTypeAndDeletedFalse(
+    Optional<FinancialPlanAsset> findByPlanIdAndStockNameAndMarketAndDeletedFalse(
             Long planId,
-            String assetCode,
-            PlanType assetType
+            String stockName,
+            AssetMarket market
     );
 }

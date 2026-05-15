@@ -8,7 +8,8 @@ import java.time.LocalDate;
 /**
  * 登记兑现买入命令对象。
  *
- * <p>对应 API-7，将一次实际买入动作累加到批次上。
+ * <p>新模型：可多次记录买入。后端将每次记录追加到 RealizationOperation，
+ * 不再对批次本身做版本号校验（不会引发 FP_VERSION_CONFLICT）。
  */
 @Data
 public class RecordRealizationBuyCommand {
@@ -22,12 +23,9 @@ public class RecordRealizationBuyCommand {
     /** 本次买入数量，必须大于 0。 */
     private BigDecimal quantity;
 
-    /** 本次费用（手续费、税等），可为 0。 */
+    /** 本次费用，可为 0 / null。 */
     private BigDecimal fee;
 
     /** 备注。 */
     private String note;
-
-    /** 乐观锁版本号。 */
-    private Integer version;
 }

@@ -1,5 +1,6 @@
 package com.funfun.schedule.service.impl;
 
+import com.funfun.schedule.config.ExchangeRateConfig;
 import com.funfun.schedule.dto.AssetProfitSummaryDTO;
 import com.funfun.schedule.dto.ProfitSummaryDTO;
 import com.funfun.schedule.dto.ProgressSnapshotDTO;
@@ -44,6 +45,7 @@ public class FinancialPlanStatsServiceImpl implements FinancialPlanStatsService 
     private final FinancialPlanRepository planRepository;
     private final FinancialPlanAssetRepository assetRepository;
     private final RealizationBatchRepository batchRepository;
+    private final ExchangeRateConfig exchangeRateConfig;
 
     /**
      * 计算计划维度收益汇总（INV-6：计划层 = 全部标的汇总）。
@@ -150,22 +152,32 @@ public class FinancialPlanStatsServiceImpl implements FinancialPlanStatsService 
     private ProfitSummaryDTO buildPlanSummaryInternal(Long planId) {
         List<AssetProfitSummaryDTO> assetSummaries = buildAssetSummaries(planId);
 
-        BigDecimal targetProfit = ZERO;
+        // 计划层目标盈利由计划本身承载（用户在计划上的设定），不再 Σ 各标的的 targetProfit。
+        FinancialPlan plan = planRepository.findByPlanIdAndDeletedFalse(planId)
+                .orElseThrow(() -> new IllegalArgumentException("planId=" + planId));
+        BigDecimal targetProfit = nullSafe(plan.getTargetProfit());
+
+        BigDecimal plannedProfit = ZERO;
         BigDecimal actualProfit = ZERO;
         BigDecimal realizedQuantity = ZERO;
         BigDecimal plannedQuantity = ZERO;
         int completedBatchCount = 0;
         int incompleteBatchCount = 0;
 
-        // 计划层指标等于全部标的指标聚合（INV-6）
+        // 已计划盈利 / 已实现盈利：把每个标的的原币种金额按其市场汇率换算成 CNY 后再求和。
+        // 数量字段不涉及币种，直接累加即可。
         for (AssetProfitSummaryDTO assetSummary : assetSummaries) {
-            targetProfit = targetProfit.add(assetSummary.getTargetProfit());
-            actualProfit = actualProfit.add(assetSummary.getActualProfit());
-            realizedQuantity = realizedQuantity.add(assetSummary.getRealizedQuantity());
-            plannedQuantity = plannedQuantity.add(assetSummary.getPlannedQuantity());
+            BigDecimal rate = exchangeRateConfig.resolveRate(assetSummary.getMarket());
+            plannedProfit = plannedProfit.add(nullSafe(assetSummary.getPlannedProfit()).multiply(rate));
+            actualProfit = actualProfit.add(nullSafe(assetSummary.getActualProfit()).multiply(rate));
+            realizedQuantity = realizedQuantity.add(nullSafe(assetSummary.getRealizedQuantity()));
+            plannedQuantity = plannedQuantity.add(nullSafe(assetSummary.getPlannedQuantity()));
         }
 
-        // 批次计数聚合（直接复用已拉取的批次数据）
+        plannedProfit = plannedProfit.setScale(SCALE, RoundingMode.HALF_UP);
+        actualProfit = actualProfit.setScale(SCALE, RoundingMode.HALF_UP);
+
+        // 批次计数聚合
         List<RealizationBatch> allBatches =
                 batchRepository.findByPlanIdAndDeletedFalseOrderByCreatedAtDesc(planId);
         for (RealizationBatch batch : allBatches) {
@@ -179,13 +191,19 @@ public class FinancialPlanStatsServiceImpl implements FinancialPlanStatsService 
         ProfitSummaryDTO dto = new ProfitSummaryDTO();
         dto.setPlanId(planId);
         dto.setTargetProfit(targetProfit);
+        dto.setPlannedProfit(plannedProfit);
         dto.setActualProfit(actualProfit);
         dto.setRealizedQuantity(realizedQuantity);
         dto.setPlannedQuantity(plannedQuantity);
+        dto.setPlannedCompletionRate(calcRate(plannedProfit, targetProfit));
         dto.setCompletionRate(calcRate(actualProfit, targetProfit));
         dto.setCompletedBatchCount(completedBatchCount);
         dto.setIncompleteBatchCount(incompleteBatchCount);
         return dto;
+    }
+
+    private BigDecimal nullSafe(BigDecimal value) {
+        return value == null ? ZERO : value;
     }
 
     /**
@@ -210,41 +228,58 @@ public class FinancialPlanStatsServiceImpl implements FinancialPlanStatsService 
     }
 
     /**
-     * 计算单个标的收益汇总。
+     * 计算单个标的收益汇总（新模型）。
      *
-     * <p>targetProfit = (planSellPrice − planBuyPrice) × planQuantity（INV-5，与兑现状态无关）。
-     * actualProfit = Σ actualProfit where stageStatus=COMPLETED（INV-5）。
-     * realizedQuantity = Σ quantity（全部批次登记数量，INV-6）。
+     * <p>标的层所有金额都保持「市场原币种」：用户在某只股票上设定的目标盈利 / 批次目标收益 / 实际盈利
+     * 都属于同一市场，单位一致，做完成度比较没有歧义。
+     * CNY 换算只在「计划层汇总」做（见 buildPlanSummaryInternal）。
      */
     private AssetProfitSummaryDTO buildAssetSummary(FinancialPlanAsset asset, List<RealizationBatch> batches) {
-        // targetProfit 仅基于计划价格与计划数量，与兑现状态无关（INV-5）
-        BigDecimal targetProfit = asset.getPlanSellPrice()
-                .subtract(asset.getPlanBuyPrice())
-                .multiply(asset.getPlanQuantity())
-                .setScale(SCALE, RoundingMode.HALF_UP);
+        BigDecimal targetProfit = asset.getTargetProfit() == null
+                ? ZERO
+                : asset.getTargetProfit().setScale(SCALE, RoundingMode.HALF_UP);
 
+        BigDecimal plannedProfit = ZERO;
         BigDecimal actualProfit = ZERO;
-        BigDecimal realizedQuantity = ZERO;
+        BigDecimal totalBatchQuantity = ZERO;
 
         for (RealizationBatch batch : batches) {
-            // 实际盈利仅聚合 COMPLETED 批次（INV-5）
+            plannedProfit = plannedProfit.add(computeBatchTargetProfit(batch));
             if (StageStatus.COMPLETED == batch.getStageStatus() && batch.getActualProfit() != null) {
                 actualProfit = actualProfit.add(batch.getActualProfit());
             }
-            // 已兑现数量聚合全部批次（INV-6）
-            realizedQuantity = realizedQuantity.add(batch.getQuantity());
+            if (batch.getQuantity() != null) {
+                totalBatchQuantity = totalBatchQuantity.add(batch.getQuantity());
+            }
         }
+
+        plannedProfit = plannedProfit.setScale(SCALE, RoundingMode.HALF_UP);
+        actualProfit = actualProfit.setScale(SCALE, RoundingMode.HALF_UP);
 
         AssetProfitSummaryDTO dto = new AssetProfitSummaryDTO();
         dto.setAssetId(asset.getAssetId());
-        dto.setAssetCode(asset.getAssetCode());
-        dto.setAssetName(asset.getAssetName());
+        dto.setAssetCode(asset.getStockName());
+        dto.setAssetName(asset.getStockName());
+        dto.setMarket(asset.getMarket());
         dto.setTargetProfit(targetProfit);
+        dto.setPlannedProfit(plannedProfit);
         dto.setActualProfit(actualProfit);
-        dto.setRealizedQuantity(realizedQuantity);
-        dto.setPlannedQuantity(asset.getPlanQuantity());
+        dto.setRealizedQuantity(totalBatchQuantity);
+        dto.setPlannedQuantity(totalBatchQuantity);
+        dto.setPlannedCompletionRate(calcRate(plannedProfit, targetProfit));
         dto.setCompletionRate(calcRate(actualProfit, targetProfit));
         return dto;
+    }
+
+    /** 单个批次的目标收益：(planSellPrice − planBuyPrice) × quantity；任意字段缺失则为 0。 */
+    private BigDecimal computeBatchTargetProfit(RealizationBatch batch) {
+        BigDecimal buy = batch.getPlanBuyPrice();
+        BigDecimal sell = batch.getPlanSellPrice();
+        BigDecimal qty = batch.getQuantity();
+        if (buy == null || sell == null || qty == null) {
+            return ZERO;
+        }
+        return sell.subtract(buy).multiply(qty);
     }
 
     /**

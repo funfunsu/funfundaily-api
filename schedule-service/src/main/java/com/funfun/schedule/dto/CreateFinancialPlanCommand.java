@@ -5,6 +5,7 @@ import com.funfun.schedule.enums.StockSubType;
 import com.funfun.schedule.enums.TimeRangeType;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -44,4 +45,7 @@ public class CreateFinancialPlanCommand {
 
     /** 备注。 */
     private String remark;
+
+    /** 用户设定的目标盈利。 */
+    private BigDecimal targetProfit;
 }
