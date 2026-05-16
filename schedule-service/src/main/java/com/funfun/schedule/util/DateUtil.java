@@ -5,11 +5,25 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.IsoFields;
 
 public class DateUtil {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
 
+    /**
+     * 获取给定日期是一年的第几周 (ISO 8601标准)
+     * 周一为一周的开始。
+     * 一年的第一周是包含该年第一个星期四的那一周。
+     *
+     * @param localDate 要计算周数的日期
+     * @return 一年中的第几周
+     */
+    public static int getWeekOfYear(LocalDate localDate) {
+        // 使用 Java 8 时间 API 的 IsoFields.WEEK_OF_WEEK_BASED_YEAR 直接获取
+        // 这是计算 ISO 8601 标准周数最直接和推荐的方式
+        return localDate.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+    }
     /**
      * 返回一天的起始时间 (yyyy-MM-dd 00:00:00)
      * @param date 给定的日期时间
@@ -51,14 +65,12 @@ public class DateUtil {
         // 使用格式器格式化 LocalDateTime
         return localDateTime.format(formatter);
     }
-    public static LocalDateTime parse(String dateString) {
+    public static LocalDate parse(String dateString) {
         if (dateString == null || dateString.trim().isEmpty()) {
             return null; // 或抛出异常
         }
 
-        LocalDate date = LocalDate.parse(dateString);
-        LocalTime time = LocalTime.of(0, 0, 0);
-        return LocalDateTime.of(date, time);
+        return LocalDate.parse(dateString);
     }
 
 }

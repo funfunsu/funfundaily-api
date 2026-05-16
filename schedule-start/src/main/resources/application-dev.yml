@@ -1,16 +1,40 @@
 
-# 生产环境：MySQL 数据库（替换为你的生产库配置）
+# 开发环境：H2 内存库（无需本地 MySQL；进程退出即清空）
+# MySQL 兼容模式 + 大小写不敏感，匹配实体里 `TINYINT/JSON/反引号` 等 MySQL 写法。
+# DB_CLOSE_DELAY=-1 让连接池关连接时不会顺手关库；DATABASE_TO_LOWER 保持表名大小写。
+# 控制台地址：http://localhost:8080/h2-console  （JDBC URL 与下面一致）
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/funfun_schedule?useSSL=false&serverTimezone=GMT%2B8 # 注意 GMT%2B8
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
+    url: jdbc:h2:mem:funfun;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,KEY,VALUE
+    driver-class-name: org.h2.Driver
+    username: sa
     password:
   jpa:
-    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: none # 生产环境禁止自动建表（手动执行 SQL）
-    show-sql: true # 关闭 SQL 打印（安全+性能）
+      ddl-auto: create-drop # 启动时按 JPA 实体重建表，进程退出即销毁
+    show-sql: true
+    defer-datasource-initialization: true # 让 data.sql 在 ddl 之后执行（如有）
+  sql:
+    init:
+      mode: always # 若 classpath 下存在 data.sql 则自动跑，方便注入种子数据
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# === 如需切回本地 MySQL，把上面 spring 段替换为：
+# spring:
+#   datasource:
+#     url: jdbc:mysql://localhost:3306/funfun_schedule?useSSL=false&serverTimezone=GMT%2B8
+#     driver-class-name: com.mysql.cj.jdbc.Driver
+#     username: root
+#     password:
+#   jpa:
+#     database-platform: org.hibernate.dialect.MySQL8Dialect
+#     hibernate:
+#       ddl-auto: none
+#     show-sql: true
 
 # 开发环境：微信小程序测试号配置（替换为你的测试号 appid/secret）
 wechat:
@@ -40,4 +64,24 @@ app:
       group-member: 10
   json:
     hanzi-writer-data:
-      path: /Users/fun/IdeaProjects/funfundaily/funfundaily-uniapp/node_modules/hanzi-writer-data
+      # 指向当前 worktree 前端 node_modules 里 hanzi-writer-data 字库（每个汉字一个 .json）
+      path: /Users/fun/funfundaily/worktrees/point-exchange/frontend/node_modules/hanzi-writer-data
+  # 发现页条目：直接增删条目即可，无需改代码
+  discovery:
+    items:
+      - itemTitle: 积分管理
+        uri: /subPackages/points/pages/points-product-manage
+        itemType: path
+        status: active
+      - itemTitle: 积分兑换
+        uri: /subPackages/points/pages/points-exchange
+        itemType: path
+        status: active
+      - itemTitle: 汉字书写
+        uri: /subPackages/study-tools/pages/writing/stroke-order
+        itemType: path
+        status: active
+      - itemTitle: 理财计划
+        uri: /subPackages/financial-plan/pages/list/index
+        itemType: path
+        status: active

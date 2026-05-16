@@ -1,13 +1,17 @@
 package com.funfun.schedule.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
+import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.funfun.schedule.enums.CloseStatus;
+import com.funfun.schedule.enums.RepeatType;
 import lombok.Data;
 
+import javax.persistence.Column;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 日程项DTO（数据传输对象）
@@ -38,9 +42,9 @@ public class ScheduleItemDTO {
     private String location;
 
     /**
-     * 重复类型：none（不重复）、daily（每日）、weekly（每周）、monthly（每月）
+     * 重复类型：none（不重复）、daily（每日）、weekly（每周）、'oddWeek' 单周,'evenWeek' 双周、monthly（每月）
      */
-    private String repeatType;
+    private RepeatType repeatType;
 
     /**
      * 重复规则键值列表，如["1","2"]表示周一、周二
@@ -50,12 +54,12 @@ public class ScheduleItemDTO {
     /**
      * 重复开始日期
      */
-    private LocalDateTime repeatStartDay;
+    private LocalDate repeatStartDay;
 
     /**
      * 重复结束日期
      */
-    private LocalDateTime repeatEndDay;
+    private LocalDate repeatEndDay;
 
     /**
      * 日程类型：meeting（会议）、task（任务）等
@@ -81,5 +85,15 @@ public class ScheduleItemDTO {
     private Long userId;
 
 
-    private Map<String,Object> extra;
+    private JSONObject extra;
+    private ScheduleItemUpdateScope updateScope;
+
+
+    private CloseStatus closeStatus;
+    private Long parentId = 0L;
+
+    /**
+     * 仅供前端展示
+     */
+    private JSONObject showExtra;
 }

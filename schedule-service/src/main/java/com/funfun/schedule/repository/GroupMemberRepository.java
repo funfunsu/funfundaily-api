@@ -2,6 +2,8 @@ package com.funfun.schedule.repository;
 
 import com.funfun.schedule.entity.GroupMember;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Date;
@@ -38,6 +40,16 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
      * @return 群组成员对象（Optional包装）
      */
     Optional<GroupMember> findByGroupIdAndUserId(Long groupId, Long userId);
+
+    /**
+     * 加锁查询群组成员，保证积分扣减时的并发安全。
+     *
+     * @param groupId 群组ID
+     * @param userId 用户ID
+     * @return 群组成员对象
+     */
+    @Query(value = "select * from group_member where group_id = :groupId and user_id = :userId and delete_flag = 0 limit 1 for update", nativeQuery = true)
+    Optional<GroupMember> findByGroupIdAndUserIdForUpdate(@Param("groupId") Long groupId, @Param("userId") Long userId);
 
     /**
      * 根据群组ID和角色查询群组成员

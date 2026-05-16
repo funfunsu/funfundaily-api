@@ -1,5 +1,6 @@
 package com.funfun.schedule.dto;
 
+import com.alibaba.fastjson2.JSONObject;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -18,10 +19,12 @@ public class CheckinRecordDTO {
 
     private Long operatorId;
 
+    private String taskKey;
+
     private LocalDateTime completeTime;
 
     private LocalDateTime taskTime;
 
-    private Map<String,Object> extra;
+    private JSONObject extra;
 
 }

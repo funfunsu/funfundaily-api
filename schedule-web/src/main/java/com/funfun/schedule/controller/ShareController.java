@@ -9,6 +9,7 @@ import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.entity.GroupMember;
 import com.funfun.schedule.entity.ShareRecord;
 import com.funfun.schedule.entity.User;
+import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.model.CommonResponse;
 import com.funfun.schedule.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,7 +75,7 @@ public class ShareController {
                 LocalDate sunday = today.with(DayOfWeek.SUNDAY);
                 String toDate = sunday.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 List<ScheduleItemDTO> list = JSON.parseObject(shareRecord.getContent(),new TypeReference<List<ScheduleItemDTO>>(){});
-                return CommonResponse.success(scheduleItemService.transferToDateScheduleItems(fromDate,toDate,list));
+                return CommonResponse.success(scheduleItemService.transferToDateScheduleItems(ScheduleItemType.schedule,fromDate,toDate,list));
             case "member_share":
                 JSONObject shareContent = JSON.parseObject(shareRecord.getContent());
                 infoMap.put("data",shareContent);

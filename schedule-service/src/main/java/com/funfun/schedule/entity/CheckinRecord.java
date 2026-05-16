@@ -28,6 +28,13 @@ public class CheckinRecord {
     @Column(name = "extra", columnDefinition = "TEXT")
     private String extra; // 可以考虑使用 @Convert(converter = JsonConverter.class) 转换为 Map 或 Object
 
+    /**
+     * 任务key，形如 "${taskId}:${periodKey}"。
+     * 用于识别"同一个任务的同一个周期"——daily 任务每日一个周期，所以用 task_id+date。
+     */
+    @Column(name = "task_key", length = 64)
+    private String taskKey;
+
     @Column(name = "delete_flag", columnDefinition = "TINYINT")
     private Boolean deleted = false; // Hibernate 通常能很好地处理 Boolean 到 TINYINT 的映射
 
@@ -75,6 +82,14 @@ public class CheckinRecord {
 
     public void setTaskTime(LocalDateTime taskTime) {
         this.taskTime = taskTime;
+    }
+
+    public String getTaskKey() {
+        return taskKey;
+    }
+
+    public void setTaskKey(String taskKey) {
+        this.taskKey = taskKey;
     }
 
     @Override

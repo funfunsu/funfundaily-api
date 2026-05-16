@@ -1,6 +1,9 @@
 package com.funfun.schedule.config;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -15,6 +18,7 @@ import org.springframework.context.annotation.Primary;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -74,6 +78,9 @@ public class JacksonConfig {
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(DATE_TIME_FORMAT);
         // 为 LocalDateTime 设置相同的格式化器
         javaTimeModule.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(dateTimeFormatter));
+        // 反序列化容忍：同时接受 'yyyy-MM-dd' / 'yyyy-MM-dd'T'HH:mm:ss' / 'yyyy-MM-dd HH:mm:ss'
+        // （前端在不同入口的日期格式不统一，全部归一处理，避免每个 DTO 单独标 @JsonFormat）
+        javaTimeModule.addDeserializer(LocalDateTime.class, new TolerantLocalDateTimeDeserializer());
 
         // 注册模块
         objectMapper.registerModule(simpleModule);
@@ -83,6 +90,56 @@ public class JacksonConfig {
         // objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         return objectMapper;
+    }
+
+    /**
+     * 容忍多种格式的 LocalDateTime 反序列化器。
+     *
+     * 接受的输入：
+     *   - "yyyy-MM-dd"               → LocalDate.atStartOfDay()
+     *   - "yyyy-MM-dd'T'HH:mm:ss"
+     *   - "yyyy-MM-dd HH:mm:ss"
+     *
+     * 设计目的：前端不同入口的日期格式不统一（有的是日期，有的是带时间），
+     * 用一个全局解析器吸收差异，避免每个 DTO 单独 @JsonFormat。
+     */
+    public static class TolerantLocalDateTimeDeserializer extends JsonDeserializer<LocalDateTime> {
+
+        private static final DateTimeFormatter ISO_DATE_TIME =
+                DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        private static final DateTimeFormatter SPACE_DATE_TIME =
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        private static final DateTimeFormatter DATE_ONLY =
+                DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        @Override
+        public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+            String text = p.getText();
+            if (text == null) {
+                return null;
+            }
+            text = text.trim();
+            if (text.isEmpty()) {
+                return null;
+            }
+            // 长度 10：纯日期，按当天零点
+            if (text.length() == 10) {
+                return LocalDate.parse(text, DATE_ONLY).atStartOfDay();
+            }
+            // 含 'T' 分隔符的标准 ISO 格式
+            if (text.indexOf('T') >= 0) {
+                // 兼容毫秒/时区后缀：截到秒
+                if (text.length() > 19) {
+                    text = text.substring(0, 19);
+                }
+                return LocalDateTime.parse(text, ISO_DATE_TIME);
+            }
+            // 空格分隔的 yyyy-MM-dd HH:mm:ss
+            if (text.length() >= 19) {
+                return LocalDateTime.parse(text.substring(0, 19), SPACE_DATE_TIME);
+            }
+            throw new IOException("Unsupported LocalDateTime format: " + text);
+        }
     }
 
     /**

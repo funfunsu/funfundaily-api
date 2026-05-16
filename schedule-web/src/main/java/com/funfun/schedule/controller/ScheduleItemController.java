@@ -114,7 +114,7 @@ public class ScheduleItemController {
             userIdLong = UserContext.getUserId();
         }
         List<ScheduleListItemDTO> scheduleItemsByDate =
-                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), ScheduleItemType.schedule);
+                scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), request.getScheduleItemType());
         return CommonResponse.success(scheduleItemsByDate);
     }
 

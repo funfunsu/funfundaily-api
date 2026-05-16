@@ -1,15 +1,17 @@
 package com.funfun.schedule.service;
 
+import com.funfun.schedule.dto.QueryScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleItemDTO;
+import com.funfun.schedule.dto.ScheduleItemUpdateScope;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
 import com.funfun.schedule.enums.ScheduleItemType;
+import net.bytebuddy.asm.Advice;
 
 import java.text.ParseException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * ScheduleItemService接口，定义ScheduleItem相关的业务逻辑方法
@@ -36,6 +38,9 @@ public interface ScheduleItemService {
      * @return 更新后的日程项对象
      */
     ScheduleItem updateScheduleItem(Long id, ScheduleItem scheduleItem);
+
+    String getTaskKey(ScheduleItemDTO scheduleItemDTO, LocalDate taskTime);
+    ScheduleItem saveForTaskUpdate(Long id, ScheduleItemUpdateScope updateScope);
 
     /**
      * 删除日程项
@@ -91,7 +96,11 @@ public interface ScheduleItemService {
      * @param ids 日程项ID列表
      */
     void batchDeleteScheduleItems(List<Long> ids);
-    
+
+
+    List<ScheduleItemDTO> getItemList(List<Long> taskIds);
+    List<ScheduleItemDTO> getItemListByParentIds(List<Long> parentIds);
+
     /**
      * 根据groupId、userId、起始日期和结束日期查询日程项，并按日期分组
      * @param groupId 组ID
@@ -100,8 +109,9 @@ public interface ScheduleItemService {
      * @param toDate 结束日期
      * @return 按日期分组的日程项Map
      */
-    List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDateTime fromDate, LocalDateTime toDate, ScheduleItemType scheduleItemType);
+    List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDate fromDate, LocalDate toDate, ScheduleItemType scheduleItemType);
+    List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, QueryScheduleItemDTO queryScheduleItemDTO) throws ParseException;
 
 
-    List<ScheduleListItemDTO> transferToDateScheduleItems(String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException;
+    List<ScheduleListItemDTO> transferToDateScheduleItems(ScheduleItemType scheduleItemType,String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException;
 }

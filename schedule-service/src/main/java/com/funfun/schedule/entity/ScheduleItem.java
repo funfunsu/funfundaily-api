@@ -1,8 +1,10 @@
 package com.funfun.schedule.entity;
 
+import com.funfun.schedule.enums.CloseStatus;
 import lombok.Data;
 
 import javax.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -34,10 +36,10 @@ public class ScheduleItem {
     private String repeatKeys; // 重复键
 
     @Column(name = "repeat_start_day")
-    private LocalDateTime repeatStartDay; // 重复开始日期
+    private LocalDate repeatStartDay; // 重复开始日期
 
     @Column(name = "repeat_end_day")
-    private LocalDateTime repeatEndDay; // 重复结束日期
+    private LocalDate repeatEndDay; // 重复结束日期
 
     @Column(name = "item_type", length = 8, nullable = false)
     private String itemType; // 项目类型，非空
@@ -68,6 +70,16 @@ public class ScheduleItem {
     private Date createTime; // 结束时间，非空
     @Column(name = "update_time", nullable = false)
     private Date updateTime; // 修改时间，非空
+    @Column(name = "update_scope", columnDefinition = "TEXT")
+    private String updateScope;
+
+
+
+    @Enumerated(EnumType.ORDINAL) // 或者 EnumType.STRING，根据你的存储偏好
+    @Column(name = "close_status", nullable = false, columnDefinition = "TINYINT")
+    private CloseStatus closeStatus = CloseStatus.OPEN; // 关闭状态，默认为OPEN
+    @Column(name = "parent_id", nullable = false)
+    private Long parentId = 0L;
 
 
     @Override
