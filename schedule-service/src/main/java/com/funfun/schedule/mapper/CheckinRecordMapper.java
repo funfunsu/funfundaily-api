@@ -13,16 +13,16 @@ import java.util.List;
 import java.util.Map;
 
 @Mapper(componentModel = "spring")
-public interface CheckinRecordMapper {
+public interface CheckinRecordMapper extends BaseMapper{
     /**
      * 将Group实体转换为GroupDTO
      * @return 群组DTO
      */
-    @Mapping(source = "extra", target = "extra", qualifiedByName = "stringToMap")
+    @Mapping(source = "extra", target = "extra", qualifiedByName = "stringToJson")
     CheckinRecordDTO toDTO(CheckinRecord record);
     List<CheckinRecordDTO> toDTOList(List<CheckinRecord> record);
 
-    @Mapping(source = "extra", target = "extra", qualifiedByName = "mapToString")
+    @Mapping(source = "extra", target = "extra", qualifiedByName = "jsonToString")
     CheckinRecord toEntity(CheckinRecordDTO record);
 
 

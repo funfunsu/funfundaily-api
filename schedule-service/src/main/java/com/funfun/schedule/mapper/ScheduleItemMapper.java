@@ -1,9 +1,10 @@
 package com.funfun.schedule.mapper;
 
 import com.alibaba.fastjson2.JSON;
-import com.funfun.schedule.dto.ScheduleItemDTO;
+import com.alibaba.fastjson2.JSONObject;
 import com.funfun.schedule.dto.ScheduleItemUpdateScope;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.dto.ScheduleItemDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -31,8 +32,8 @@ public interface ScheduleItemMapper extends BaseMapper{
      * @return 日程项DTO
      */
     @Mapping(source = "repeatKeys", target = "repeatKeys", qualifiedByName = "stringToList")
-    @Mapping(source = "extra", target = "extra", qualifiedByName = "stringToMap")
-    @Mapping(source = "updateScope", target = "updateScope", qualifiedByName = "stringToUpdateScope")
+    @Mapping(source = "extra", target = "extra", qualifiedByName = "stringToJson")
+    @Mapping(source = "updateScope", target = "updateScope", qualifiedByName = "stringToScope")
     ScheduleItemDTO toDTO(ScheduleItem scheduleItem);
 
     /**
@@ -43,8 +44,8 @@ public interface ScheduleItemMapper extends BaseMapper{
     @Mapping(source = "repeatKeys", target = "repeatKeys", qualifiedByName = "listToString")
     @Mapping(target = "userId",ignore = true)
     @Mapping(target = "groupId",ignore = true)
-    @Mapping(source = "extra", target = "extra", qualifiedByName = "mapToString")
-    @Mapping(source = "updateScope", target = "updateScope", qualifiedByName = "updateScopeToString")
+    @Mapping(source = "extra", target = "extra", qualifiedByName = "jsonToString")
+    @Mapping(source = "updateScope", target = "updateScope", qualifiedByName = "scopeToString")
     ScheduleItem toEntity(ScheduleItemDTO scheduleItemDTO);
 
     /**
@@ -98,20 +99,28 @@ public interface ScheduleItemMapper extends BaseMapper{
     }
 
     /**
-     * update_scope 列 (TEXT, JSON 串) ↔ ScheduleItemUpdateScope 对象。
+     * 将列表转换为字符串
+     * @param map 字符串列表
+     * @return 转换后的字符串
      */
-    @Named("stringToUpdateScope")
-    default ScheduleItemUpdateScope stringToUpdateScope(String value) {
-        if (value == null || value.isEmpty()) return null;
-        try {
-            return JSON.parseObject(value, ScheduleItemUpdateScope.class);
-        } catch (Exception e) {
+    @Named("scopeToString")
+    default String scopeToString(ScheduleItemUpdateScope map) {
+        if (map == null){
             return null;
         }
+        return JSON.toJSONString(map);
     }
 
-    @Named("updateScopeToString")
-    default String updateScopeToString(ScheduleItemUpdateScope scope) {
-        return scope == null ? null : JSON.toJSONString(scope);
+    /**
+     * 将列表转换为字符串
+     * @param str 字符串列表
+     * @return 转换后的字符串
+     */
+    @Named("stringToScope")
+    default ScheduleItemUpdateScope stringToScope(String str) {
+        if (str == null){
+            return null;
+        }
+        return JSON.parseObject(str,ScheduleItemUpdateScope.class);
     }
 }

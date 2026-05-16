@@ -1,19 +1,23 @@
 package com.funfun.schedule.service.impl;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
+import com.funfun.schedule.constants.TaskConstants;
 import com.funfun.schedule.dto.QueryScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleItemUpdateScope;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
-import com.funfun.schedule.entity.CheckinRecord;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.enums.CloseStatus;
 import com.funfun.schedule.enums.RepeatType;
 import com.funfun.schedule.enums.ScheduleItemType;
+import com.funfun.schedule.enums.TaskType;
+import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.mapper.ScheduleItemMapper;
-import com.funfun.schedule.repository.CheckinRecordRepository;
 import com.funfun.schedule.repository.ScheduleItemRepository;
 import com.funfun.schedule.service.ScheduleItemService;
 import com.funfun.schedule.util.DateUtil;
-import net.bytebuddy.asm.Advice;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +28,16 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
-import java.time.temporal.WeekFields;
 import java.util.*;
+import java.util.jar.JarEntry;
 import java.util.stream.Collectors;
 
 /**
  * ScheduleItemService接口的实现类，实现ScheduleItem相关的业务逻辑
  */
+@Slf4j
 @Service
 public class ScheduleItemServiceImpl implements ScheduleItemService {
 
@@ -39,8 +45,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     private final ScheduleItemMapper scheduleItemMapper;
 
     @Autowired
-    public ScheduleItemServiceImpl(ScheduleItemRepository scheduleItemRepository,
-                                   ScheduleItemMapper scheduleItemMapper) {
+    public ScheduleItemServiceImpl(ScheduleItemRepository scheduleItemRepository, ScheduleItemMapper scheduleItemMapper) {
         this.scheduleItemRepository = scheduleItemRepository;
         this.scheduleItemMapper = scheduleItemMapper;
     }
@@ -48,6 +53,9 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     @Override
     public boolean createScheduleItems(Long userId, Long groupId,Long targetUserId, List<ScheduleItemDTO> scheduleItem) {
         for (ScheduleItemDTO scheduleItemDTO : scheduleItem) {
+            if (scheduleItemDTO.getItemTitle() == null || scheduleItemDTO.getItemTitle().isBlank()){
+                CommonException.DATA_INVALID.throwsError("标题不能为空");
+            }
             ScheduleItem scheduleItemEntity = scheduleItemMapper.toEntity(scheduleItemDTO);
             scheduleItemEntity.setUserId(targetUserId);
             scheduleItemEntity.setGroupId(groupId);
@@ -56,12 +64,20 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
             scheduleItemEntity.setCreateTime(new Date());
             scheduleItemEntity.setUpdateTime(new Date());
 
-            if (scheduleItemEntity.getRepeatStartDay() == null || RepeatType.none.name().equals(scheduleItemEntity.getRepeatType())){
-                scheduleItemEntity.setRepeatStartDay(DateUtil.getStartOfDay(scheduleItemEntity.getStartTime()));
+            if (scheduleItemEntity.getRepeatStartDay() == null){
+                scheduleItemEntity.setRepeatStartDay(DateUtil.getStartOfDay(LocalDateTime.now()).toLocalDate());
             }
 
-            if (scheduleItemEntity.getRepeatEndDay() == null || RepeatType.none.name().equals(scheduleItemEntity.getRepeatType())){
-                scheduleItemEntity.setRepeatEndDay(DateUtil.getEndOfDay(scheduleItemEntity.getEndTime()));
+            if (scheduleItemEntity.getRepeatEndDay() == null){
+                scheduleItemEntity.setRepeatEndDay(DateUtil.getEndOfDay(LocalDateTime.now()).toLocalDate());
+            }
+
+            // MapStruct.toEntity 会用 DTO 里 null 值覆盖字段初始化默认值，这里兜底，避免 NOT NULL 约束触发。
+            if (scheduleItemEntity.getCloseStatus() == null) {
+                scheduleItemEntity.setCloseStatus(CloseStatus.OPEN);
+            }
+            if (scheduleItemEntity.getParentId() == null) {
+                scheduleItemEntity.setParentId(0L);
             }
 
             scheduleItemRepository.save(scheduleItemEntity);
@@ -77,6 +93,91 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         }
         return null;
     }
+
+    @Override
+    public String getTaskKey(ScheduleItemDTO scheduleItemDTO, LocalDate taskTime) {
+        String key;
+        switch (scheduleItemDTO.getRepeatType()) {
+            case daily:
+                // 格式化为 "yyyy-MM-dd"，例如 "2026-01-07"
+                key = taskTime.toString();
+                break;
+            case weekly:
+                // 年-周: 例如 "2026-W01"
+                int weekOfYear = DateUtil.getWeekOfYear(taskTime); // 使用你提供的方法
+                int year = taskTime.getYear();
+                key = String.format("%d-W%02d", year, weekOfYear);
+                break;
+            case yearly:
+                // 年: 例如 "2026"
+                key = String.valueOf(taskTime.getYear());
+                break;
+            case monthly:
+                // 年-月: 例如 "2026-01"
+                int yearM = taskTime.getYear();
+                int month = taskTime.getMonthValue();
+                // 格式化月份为两位数，例如 01, 02, ... 12
+                key = String.format("%d-%02d", yearM, month);
+                break;
+            default:
+                key = "";
+        }
+
+        // 统一返回 taskId-key 的格式
+        return scheduleItemDTO.getId() + ":" + key;
+
+    }
+
+
+    public LocalDate getDueDate(ScheduleItemDTO scheduleItemDTO, LocalDate taskTime) {
+        LocalDate dueDate = null;
+
+        switch (scheduleItemDTO.getRepeatType()) {
+            case daily:
+                // 每日重复：到期日就是 taskTime 所在的日期
+                // 例如，taskTime 是 2024-03-15T10:30，则 dueDate 是 2024-03-15
+                dueDate = taskTime;
+                break;
+            case weekly:
+                // 每周重复：到期日是 taskTime 所在周的周日（一周的最后一天）
+                // 例如，taskTime 是 2026-01-09 (周五)，则 dueDate 是 2026-01-11 (周日)
+                dueDate = taskTime.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+                break;
+            case yearly:
+                // 每年重复：到期日是 taskTime 所在年的最后一天，即12月31日
+                // 例如，taskTime 是 2026-01-09T20:18，则 dueDate 是 2026-12-31
+                dueDate = taskTime.with(TemporalAdjusters.lastDayOfYear());
+                break;
+            case monthly:
+                // 每月重复：到期日是 taskTime 所在月份的最后一天
+                // 例如，taskTime 是 2026-01-09T20:18，则 dueDate 是 2026-01-31
+                // (如果是2月，会自动处理 2024-02-29 或 2023-02-28)
+                dueDate = taskTime.with(TemporalAdjusters.lastDayOfMonth());
+                break;
+            default:
+                // 如果传入了未定义的重复类型，使用 DTO 中指定的 endTime 的日期部分作为兜底
+                dueDate = scheduleItemDTO.getRepeatEndDay();
+        }
+        boolean isRepeatEndBeforeDueDate = scheduleItemDTO.getRepeatEndDay().isBefore(dueDate);
+        if (isRepeatEndBeforeDueDate){
+            return scheduleItemDTO.getRepeatEndDay();
+        }
+        // 统一返回计算得出的到期日期
+        return dueDate;
+    }
+
+    @Override
+    public ScheduleItem saveForTaskUpdate(Long id, ScheduleItemUpdateScope updateScope) {
+        Optional<ScheduleItem> existingItem = scheduleItemRepository.findById(id);
+        if (existingItem.isPresent()) {
+            ScheduleItem itemToUpdate = existingItem.get();
+            itemToUpdate.setUpdateScope(JSON.toJSONString(updateScope));
+            return scheduleItemRepository.save(itemToUpdate);
+        } else {
+            throw new RuntimeException("ScheduleItem not found with id: " + id);
+        }
+    }
+
     @Override
     public ScheduleItem updateScheduleItem(Long id, ScheduleItem scheduleItem) {
         Optional<ScheduleItem> existingItem = scheduleItemRepository.findById(id);
@@ -153,150 +254,74 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         scheduleItemRepository.deleteAllById(ids);
     }
 
-    private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,ScheduleItemType itemType,LocalDateTime fromDate, LocalDateTime toDate){
+    private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,ScheduleItemType itemType,LocalDate fromDate, LocalDate toDate){
         List<ScheduleItem> allScheduleItems = null;
         if (userId == null){
-            allScheduleItems = scheduleItemRepository.findOverlappingByGroupId(groupId,fromDate,toDate);
+            allScheduleItems = scheduleItemRepository.findOverlappingByGroupId(itemType.name(),groupId,fromDate,toDate);
         }else{
             if (groupId == null){
-                allScheduleItems = scheduleItemRepository.findOverlappingByUserId(userId,fromDate,toDate);
+                allScheduleItems = scheduleItemRepository.findOverlappingByUserId(itemType.name(),userId,fromDate,toDate);
             }else{
-                allScheduleItems = scheduleItemRepository.findOverlappingByGroupIdAndUserId(groupId, userId,fromDate,toDate);
+                allScheduleItems = scheduleItemRepository.findOverlappingByGroupIdAndUserId(itemType.name(),groupId, userId,fromDate,toDate);
             }
         }
-        return  scheduleItemMapper.toDTOList(allScheduleItems.stream().filter(scheduleItemDTO -> {return itemType.name().equals(scheduleItemDTO.getItemType());}).collect(Collectors.toList()));
+
+        if (allScheduleItems != null){
+            log.info("from db:{}{}{}{}{},list:{}",groupId,userId,itemType,fromDate,toDate,JSONObject.toJSONString(allScheduleItems));
+        }
+        return  scheduleItemMapper.toDTOList(allScheduleItems);
     }
 
+    @Override
+    public List<ScheduleItemDTO> getItemList(List<Long> taskIds) {
+        List<ScheduleItem> allScheduleItems = scheduleItemRepository.findByIdIn(taskIds);
+        return  scheduleItemMapper.toDTOList(allScheduleItems);
+    }
 
     @Override
-    public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDateTime fromDate, LocalDateTime toDate,ScheduleItemType scheduleItemType) {
+    public List<ScheduleItemDTO> getItemListByParentIds(List<Long> parentIds) {
+        List<ScheduleItem> allScheduleItems = scheduleItemRepository.findByParentIdIn(parentIds);
+        return  scheduleItemMapper.toDTOList(allScheduleItems);
+    }
+
+    @Override
+    public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDate fromDate, LocalDate toDate,ScheduleItemType scheduleItemType) {
         try {
-            // updateScope 由 mapper 从 schedule_item.update_scope 列直接反序列化
             List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,scheduleItemType,fromDate,toDate);
-            return transferToDateScheduleItems(scheduleItemType, DateUtil.formatToLocalDateStr(fromDate),DateUtil.formatToLocalDateStr(toDate),allScheduleItemDTOS);
+            return transferToDateScheduleItems(scheduleItemType,fromDate.toString(),toDate.toString(),allScheduleItemDTOS);
         } catch (ParseException e) {
             throw new RuntimeException("Date format error: " + e.getMessage());
         }
     }
 
     @Override
-    public ScheduleItem saveForTaskUpdate(Long id, ScheduleItemUpdateScope updateScope) {
-        ScheduleItem existing = scheduleItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("ScheduleItem not found with id: " + id));
-        existing.setUpdateScope(com.alibaba.fastjson2.JSON.toJSONString(updateScope));
-        return scheduleItemRepository.save(existing);
+    public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, QueryScheduleItemDTO queryScheduleItemDTO) throws ParseException {
+        List<ScheduleItemDTO> scheduleItemDTOList = null;
+        if (queryScheduleItemDTO.getTaskIds() != null) {
+            scheduleItemDTOList = getItemList(queryScheduleItemDTO.getTaskIds());
+        } else if (queryScheduleItemDTO.getParentIds() != null) {
+            scheduleItemDTOList = getItemListByParentIds(queryScheduleItemDTO.getParentIds());
+        }else{
+            scheduleItemDTOList = getItemList(groupId,userId,queryScheduleItemDTO.getScheduleItemType(),queryScheduleItemDTO.getFromDate(),queryScheduleItemDTO.getToDate());
+        }
+        return transferToDateScheduleItems(queryScheduleItemDTO.getScheduleItemType(),queryScheduleItemDTO.getFromDate().toString(),queryScheduleItemDTO.getToDate().toString(),scheduleItemDTOList);
     }
 
     @Override
-    public List<ScheduleListItemDTO> transferToDateScheduleItems(String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException {
-        // 兼容旧调用，默认按 schedule 处理（不会算 dueDate，仅 itemKey）
-        return transferToDateScheduleItems(ScheduleItemType.schedule, fromDate, toDate, list);
-    }
-
-    @Override
-    public List<ScheduleListItemDTO> transferToDateScheduleItems(ScheduleItemType scheduleItemType, String fromDate, String toDate, List<ScheduleItemDTO> list) throws ParseException {
+    public List<ScheduleListItemDTO> transferToDateScheduleItems(ScheduleItemType scheduleItemType,String fromDate, String toDate,List<ScheduleItemDTO> list) throws ParseException {
         List<String> allDates = generateDates(fromDate, toDate);
+        // 按日期分组存储结果
         List<ScheduleListItemDTO> result = new ArrayList<>(allDates.size());
+        // 对每个日期进行处理
         for (String date : allDates) {
-            List<ScheduleItemDTO> filteredSchedules = filterAndFillSchedules(scheduleItemType, list, date);
+            // 过滤并填充该日期的日程项
+            List<ScheduleItemDTO> filteredSchedules = filterAndFillSchedules(scheduleItemType,list, date);
+            // 按开始时间排序
             filteredSchedules.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
-            result.add(new ScheduleListItemDTO(date, filteredSchedules));
+            result.add(new ScheduleListItemDTO(date,filteredSchedules));
         }
+
         return result;
-    }
-
-    @Override
-    public List<ScheduleItemDTO> getItemList(List<Long> taskIds) {
-        if (taskIds == null || taskIds.isEmpty()) return new ArrayList<>();
-        List<ScheduleItem> items = scheduleItemRepository.findAllById(taskIds);
-        return scheduleItemMapper.toDTOList(items);
-    }
-
-    @Override
-    public List<ScheduleItemDTO> getItemListByParentIds(List<Long> parentIds) {
-        // TODO: ScheduleItem 暂无 parentId 列 (entity/db 都缺)，等加上后改为 findByParentIdIn(parentIds)。
-        // 现在保持空返回 + 日志，避免上层 NPE。
-        if (parentIds != null && !parentIds.isEmpty()) {
-            org.slf4j.LoggerFactory.getLogger(ScheduleItemServiceImpl.class)
-                    .warn("getItemListByParentIds called but ScheduleItem.parentId not implemented yet; returning empty. parentIds={}", parentIds);
-        }
-        return new ArrayList<>();
-    }
-
-    @Override
-    public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, QueryScheduleItemDTO query) throws ParseException {
-        List<ScheduleItemDTO> dtoList;
-        if (query.getTaskIds() != null && !query.getTaskIds().isEmpty()) {
-            dtoList = getItemList(query.getTaskIds());
-        } else if (query.getParentIds() != null && !query.getParentIds().isEmpty()) {
-            dtoList = getItemListByParentIds(query.getParentIds());
-        } else {
-            dtoList = getItemList(groupId, userId, query.getScheduleItemType(), query.getFromDate(), query.getToDate());
-        }
-        return transferToDateScheduleItems(
-                query.getScheduleItemType(),
-                DateUtil.formatToLocalDateStr(query.getFromDate()),
-                DateUtil.formatToLocalDateStr(query.getToDate()),
-                dtoList);
-    }
-
-    /**
-     * 计算任务键 (与原始实现保持一致)：
-     *   daily   → ${id}:${yyyy-MM-dd}
-     *   weekly  → ${id}:${yyyy-Www}
-     *   monthly → ${id}:${yyyy-MM}
-     *   yearly  → ${id}:${yyyy}
-     *   其他    → ${id}:        （none/未知）
-     */
-    public String getTaskKey(ScheduleItemDTO dto, LocalDate taskTime) {
-        String key;
-        String repeatType = dto.getRepeatType();
-        if ("daily".equals(repeatType)) {
-            key = taskTime.toString();
-        } else if ("weekly".equals(repeatType)) {
-            int weekOfYear = taskTime.get(WeekFields.ISO.weekOfYear());
-            key = String.format("%d-W%02d", taskTime.getYear(), weekOfYear);
-        } else if ("monthly".equals(repeatType)) {
-            key = String.format("%d-%02d", taskTime.getYear(), taskTime.getMonthValue());
-        } else if ("yearly".equals(repeatType)) {
-            key = String.valueOf(taskTime.getYear());
-        } else {
-            key = "";
-        }
-        return dto.getId() + ":" + key;
-    }
-
-    /**
-     * 计算到期日：
-     *   daily   → 当日
-     *   weekly  → 当周日
-     *   monthly → 当月最后一天
-     *   yearly  → 当年最后一天
-     *   其他    → repeatEndDay 或 当日
-     * 若结果晚于 repeatEndDay，截到 repeatEndDay。
-     */
-    public LocalDate getDueDate(ScheduleItemDTO dto, LocalDate taskTime) {
-        LocalDate dueDate;
-        String repeatType = dto.getRepeatType();
-        if ("daily".equals(repeatType)) {
-            dueDate = taskTime;
-        } else if ("weekly".equals(repeatType)) {
-            dueDate = taskTime.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
-        } else if ("monthly".equals(repeatType)) {
-            dueDate = taskTime.with(TemporalAdjusters.lastDayOfMonth());
-        } else if ("yearly".equals(repeatType)) {
-            dueDate = taskTime.with(TemporalAdjusters.lastDayOfYear());
-        } else {
-            LocalDateTime end = dto.getRepeatEndDay();
-            dueDate = end != null ? end.toLocalDate() : taskTime;
-        }
-        if (dto.getRepeatEndDay() != null) {
-            LocalDate repeatEnd = dto.getRepeatEndDay().toLocalDate();
-            if (repeatEnd.isBefore(dueDate)) {
-                return repeatEnd;
-            }
-        }
-        return dueDate;
     }
 
     /**
@@ -329,18 +354,18 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     /**
      * 根据日期过滤日程项，处理不同类型的重复规则
      */
-    private List<ScheduleItemDTO> filterAndFillSchedules(ScheduleItemType scheduleItemType, List<ScheduleItemDTO> schedules, String date) throws ParseException {
-        LocalDateTime dateObj = DateUtil.parse(date);
+    private List<ScheduleItemDTO> filterAndFillSchedules(ScheduleItemType scheduleItemType,List<ScheduleItemDTO> schedules, String date) throws ParseException {
+        LocalDate dateObj = DateUtil.parse(date);
         
         // 非重复日程项
         List<ScheduleItemDTO> noneRepeatSchedules = schedules.stream()
-                .filter(schedule -> "none".equals(schedule.getRepeatType()) && 
-                        isDateWithinRange(schedule.getStartTime(), schedule.getEndTime(), dateObj))
+                .filter(schedule -> RepeatType.none.equals(schedule.getRepeatType()) &&
+                        (ScheduleItemType.schedule.equals(scheduleItemType)?isDateWithinRange(schedule.getStartTime(), schedule.getEndTime(), dateObj.atStartOfDay()):isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj)))
                 .collect(Collectors.toList());
         
         // 每日重复日程项
         List<ScheduleItemDTO> dailySchedules = schedules.stream()
-                .filter(schedule -> "daily".equals(schedule.getRepeatType()) && 
+                .filter(schedule -> RepeatType.daily.equals(schedule.getRepeatType()) &&
                         isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj))
                 .map(scheduleItemMapper::copy)
                 .collect(Collectors.toList());
@@ -350,16 +375,36 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         // 每周重复日程项
         String weeklyRepeatKey = String.valueOf(getDayOfWeek(dateObj));
         List<ScheduleItemDTO> weeklySchedules = schedules.stream()
-                .filter(schedule -> "weekly".equals(schedule.getRepeatType()) && 
+                .filter(schedule -> RepeatType.weekly.equals(schedule.getRepeatType()) &&
                         isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj) &&
                         containsRepeatKey(schedule.getRepeatKeys(), weeklyRepeatKey))
                 .map(scheduleItemMapper::copy)
                 .collect(Collectors.toList());
+        // 每单周重复日程项'oddWeek','evenWeek'
+        List<ScheduleItemDTO> oddWeekSchedules = schedules.stream()
+                .filter(schedule -> RepeatType.oddWeek.equals(schedule.getRepeatType()) &&
+                        isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj) &&
+                        isOddWeek(schedule.getRepeatStartDay(),dateObj) &&
+                        containsRepeatKey(schedule.getRepeatKeys(), weeklyRepeatKey))
+                .map(scheduleItemMapper::copy)
+                .collect(Collectors.toList());
+
+
+        // 每双周重复日程项
+        List<ScheduleItemDTO> evenWeekSchedules = schedules.stream()
+                .filter(schedule -> RepeatType.evenWeek.equals(schedule.getRepeatType()) &&
+                        isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj) &&
+                        !isOddWeek(schedule.getRepeatStartDay(),dateObj) &&
+                        containsRepeatKey(schedule.getRepeatKeys(), weeklyRepeatKey))
+                .map(scheduleItemMapper::copy)
+                .collect(Collectors.toList());
+
+
         
         // 每月重复日程项
         String monthlyRepeatKey = String.valueOf(dateObj.getDayOfMonth());
         List<ScheduleItemDTO> monthlySchedules = schedules.stream()
-                .filter(schedule -> "monthly".equals(schedule.getRepeatType()) && 
+                .filter(schedule -> RepeatType.monthly.equals(schedule.getRepeatType()) &&
                         isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj) &&
                         containsRepeatKey(schedule.getRepeatKeys(), monthlyRepeatKey))
                 .map(scheduleItemMapper::copy)
@@ -368,7 +413,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         // 每年重复日程项
         String yearlyRepeatKey = String.format("%d-%d", dateObj.getMonthValue() + 1, dateObj.getDayOfMonth());
         List<ScheduleItemDTO> yearlySchedules = schedules.stream()
-                .filter(schedule -> "yearly".equals(schedule.getRepeatType()) && 
+                .filter(schedule -> RepeatType.yearly.equals(schedule.getRepeatType()) &&
                         isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj) &&
                         containsRepeatKey(schedule.getRepeatKeys(), yearlyRepeatKey))
                 .map(scheduleItemMapper::copy)
@@ -379,24 +424,24 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         allSchedules.addAll(noneRepeatSchedules);
         allSchedules.addAll(dailySchedules);
         allSchedules.addAll(weeklySchedules);
+        allSchedules.addAll(oddWeekSchedules);
+        allSchedules.addAll(evenWeekSchedules);
         allSchedules.addAll(monthlySchedules);
         allSchedules.addAll(yearlySchedules);
 
-        // 注入 showExtra：itemKey / dueDate(任务才算) / lastCompleteKey(有 updateScope 才算)
-        LocalDate localDate = dateObj.toLocalDate();
-        for (ScheduleItemDTO dto : allSchedules) {
-            Map<String, Object> showExtra = new HashMap<>();
-            showExtra.put("itemKey", getTaskKey(dto, localDate));
-            if (ScheduleItemType.task.equals(scheduleItemType)) {
-                showExtra.put("dueDate", getDueDate(dto, localDate).toString());
+        allSchedules.forEach(scheduleItemDTO -> {
+            JSONObject showExtra = new JSONObject();
+            showExtra.put("itemKey",getTaskKey(scheduleItemDTO,dateObj));
+            if(ScheduleItemType.task.equals(scheduleItemType)){
+                LocalDate dueDate = getDueDate(scheduleItemDTO,dateObj);
+                showExtra.put("dueDate",dueDate.toString());
             }
-            if (dto.getUpdateScope() != null && dto.getUpdateScope().getLastCompleteTime() != null) {
-                LocalDate lastDay = dto.getUpdateScope().getLastCompleteTime().toLocalDate();
-                showExtra.put("lastCompleteKey", getTaskKey(dto, lastDay));
+            if (scheduleItemDTO.getUpdateScope() != null && scheduleItemDTO.getUpdateScope().getLastCompleteTime()!= null){
+                showExtra.put("lastCompleteKey",getTaskKey(scheduleItemDTO,scheduleItemDTO.getUpdateScope().getLastCompleteTime().toLocalDate()));
             }
-            dto.setShowExtra(showExtra);
-        }
-
+            scheduleItemDTO.setShowExtra(showExtra);
+        });
+        
         return allSchedules;
     }
     
@@ -416,7 +461,7 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     /**
      * 检查日期是否在重复范围内
      */
-    private boolean isDateWithinRepeatRange(LocalDateTime repeatStartDay, LocalDateTime repeatEndDay, LocalDateTime date) {
+    private boolean isDateWithinRepeatRange(LocalDate repeatStartDay, LocalDate repeatEndDay, LocalDate date) {
         if (repeatStartDay == null) {
             return true;
         }
@@ -425,9 +470,9 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
             return !date.isBefore(repeatStartDay);
         }
         
-        return !date.isBefore(repeatStartDay) && !date.isAfter(repeatEndDay);
+        return !date.isBefore(repeatStartDay) && (date.isBefore(repeatEndDay) || date.equals(repeatEndDay));
     }
-    private int getDayOfWeek(LocalDateTime date) {
+    private int getDayOfWeek(LocalDate date) {
         if (date == null) {
             throw new IllegalArgumentException("Date must not be null");
         }
@@ -437,10 +482,32 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
 
 
+    private boolean isOddWeek(LocalDate repeatStartDate, LocalDate curDate){
+        if (repeatStartDate == null || curDate == null) {
+            throw new IllegalArgumentException("Start date and current date cannot be null");
+        }
+        // 计算两个日期之间的天数差
+        long daysBetween = ChronoUnit.DAYS.between(repeatStartDate, curDate);
+
+        // 计算周数差 (整数部分)
+        // 例如，如果相差 0-6 天，周数差为 0 (在同一周)；相差 7-13 天，周数差为 1 (下一周)。
+        long weeksDifference = daysBetween / 7;
+
+        // 判断奇偶性
+        // repeatStartDate 被定义为单周 (Odd Week, 基数周)
+        // 如果周数差是偶数，则 curDate 与 repeatStartDate 在相同类型的周 (奇 + 偶数 = 奇)
+        // 如果周数差是奇数，则 curDate 与 repeatStartDate 在不同类型的周 (奇 + 奇数 = 偶)
+        return (weeksDifference % 2 == 0);
+    }
+
+
     /**
      * 检查重复键是否包含指定的键
      */
     private boolean containsRepeatKey(List<String> repeatKeys, String key) {
+        if (repeatKeys.contains("whole")){
+            return true;
+        }
         if (repeatKeys == null || repeatKeys.isEmpty()) {
             return false;
         }

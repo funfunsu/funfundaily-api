@@ -39,3 +39,18 @@ VALUES
 -- 可能拿到这条种子行而不是新写入的流水，导致前端余额永远显示 500。
 INSERT INTO transaction_flow (group_id, user_id, transaction_type, flow_type, amount, balance, description, operator, created_at, updated_at)
 VALUES (1, 1, 1, 0, 500, 500, '初始测试积分', 1, '2020-01-01 00:00:00', '2020-01-01 00:00:00');
+
+
+-- 注意：universal_record.content 是 JSON 列，H2 在 MySQL 模式下也会建 JSON 类型；
+-- 直接用字符串字面量会被当成"JSON 字符串值"二次编码（取出来多一层引号 + 反斜杠），
+-- DiscoveryController 里 fastjson2.parseArray 就会报 "illegal input, offset 1, char \""。
+-- 用 H2 的 JSON 字面量 `JSON '...'` 让 H2 当成 JSON 数组存。
+INSERT INTO universal_record (scene, scene_var, business_key, content, created_by, updated_by)
+VALUES (
+  'system',
+  'discovery',
+  'default',
+  JSON '[{"id":null,"itemTitle":"积分管理","itemType":"path","uri":"/subPackages/points/pages/points-product-manage","status":"active"},{"id":null,"itemTitle":"积分兑换","itemType":"path","uri":"/subPackages/points/pages/points-exchange","status":"active"},{"id":null,"itemTitle":"汉字书写","itemType":"path","uri":"/subPackages/study-tools/pages/writing/stroke-order","status":"active"},{"id":null,"itemTitle":"理财计划","itemType":"path","uri":"/subPackages/financial-plan/pages/list/index","status":"active"},{"id":null,"itemTitle":"家庭账本","itemType":"path","uri":"/subPackages/study-tools/pages/ledger/index","status":"active"}]',
+  0,
+  0
+);
