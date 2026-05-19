@@ -1,8 +1,10 @@
 package com.funfun.schedule.entity;
 
+import com.funfun.schedule.enums.CloseStatus;
 import lombok.Data;
 
 import javax.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -34,10 +36,10 @@ public class ScheduleItem {
     private String repeatKeys; // 重复键
 
     @Column(name = "repeat_start_day")
-    private LocalDateTime repeatStartDay; // 重复开始日期
+    private LocalDate repeatStartDay; // 重复开始日期
 
     @Column(name = "repeat_end_day")
-    private LocalDateTime repeatEndDay; // 重复结束日期
+    private LocalDate repeatEndDay; // 重复结束日期
 
     @Column(name = "item_type", length = 8, nullable = false)
     private String itemType; // 项目类型，非空
@@ -60,21 +62,6 @@ public class ScheduleItem {
     @Column(name = "label", length = 256)
     private String label; // 标签
 
-    /**
-     * update_scope 列，存放任务运行期快照（lastCompleteTime 等），JSON 字符串。
-     * mapper 负责 ScheduleItemUpdateScope ↔ String 的转换。
-     */
-    @Column(name = "update_scope", columnDefinition = "TEXT")
-    private String updateScope;
-
-    /** 关联 parentItemId，比如任务隶属的目标 itemId */
-    @Column(name = "parent_id")
-    private Long parentId;
-
-    /** 完成状态，0=进行中 / 1=已完成 等（含义业务定义） */
-    @Column(name = "close_status", columnDefinition = "TINYINT")
-    private Integer closeStatus;
-
     @Column(name = "create_by", nullable = false)
     private Long createBy; // 人员ID，非空
     @Column(name = "update_by", nullable = false)
@@ -83,6 +70,16 @@ public class ScheduleItem {
     private Date createTime; // 结束时间，非空
     @Column(name = "update_time", nullable = false)
     private Date updateTime; // 修改时间，非空
+    @Column(name = "update_scope", columnDefinition = "TEXT")
+    private String updateScope;
+
+
+
+    @Enumerated(EnumType.ORDINAL) // 或者 EnumType.STRING，根据你的存储偏好
+    @Column(name = "close_status", nullable = false, columnDefinition = "TINYINT")
+    private CloseStatus closeStatus = CloseStatus.OPEN; // 关闭状态，默认为OPEN
+    @Column(name = "parent_id", nullable = false)
+    private Long parentId = 0L;
 
 
     @Override

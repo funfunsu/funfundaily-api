@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "universal_record", indexes = {
-        @Index(name = "idx_scene_business_key", columnList = "scene,business_key,scene_variables")
+        @Index(name = "idx_scene_business_key", columnList = "scene,scene_var,business_key")
 })
 public class UniversalRecord {
 
@@ -24,8 +24,8 @@ public class UniversalRecord {
     @Column(name = "business_key", nullable = false, length = 127)
     private String businessKey;
 
-    @Column(name = "scene_variables", length = 64) // 长度限制为 64
-    private String sceneVariables; // 作为字符串存储
+    @Column(name = "scene_var", length = 64) // 对应线上列名 scene_var
+    private String sceneVar; // 作为字符串存储
 
     @Column(name = "content", columnDefinition = "json")
     private String content; // 使用 String 存储 JSON

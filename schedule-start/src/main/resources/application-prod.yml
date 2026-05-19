@@ -41,4 +41,24 @@ app:
   json:
     hanzi-writer-data:
       path: /app/data/hanzi-writer-data
+  # 发现页条目：直接增删条目即可，无需改代码
+  discovery:
+    items:
+      - itemTitle: 积分管理
+        uri: /subPackages/points/pages/points-product-manage
+        itemType: path
+        status: active
+      - itemTitle: 积分兑换
+        uri: /subPackages/points/pages/points-exchange
+        itemType: path
+        status: active
+      - itemTitle: 汉字书写
+        uri: /subPackages/study-tools/pages/writing/stroke-order
+        itemType: path
+        status: active
+      - itemTitle: 理财计划
+        uri: /subPackages/financial-plan/pages/list/index
+        itemType: path
+        status: active
+
 

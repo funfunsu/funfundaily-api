@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,6 +25,9 @@ public interface ScheduleItemRepository extends JpaRepository<ScheduleItem, Long
     List<ScheduleItem> findByGroupIdAndUserId(Long groupId, Long UserId);
 
 
+
+    List<ScheduleItem> findByIdIn(List<Long> ids);
+    List<ScheduleItem> findByParentIdIn(List<Long> parentIds);
     /**
      * 查找在指定时间窗口内有活动（重复周期与窗口重叠）且属于指定组的日程项。
      * 时间重叠条件：schedule.repeatStartDay < windowEndTime AND schedule.repeatEndDay > windowStartTime
@@ -34,33 +38,41 @@ public interface ScheduleItemRepository extends JpaRepository<ScheduleItem, Long
      * @return 符合条件的日程项列表
      */
     @Query("SELECT s FROM ScheduleItem s WHERE s.groupId = :groupId " +
-            "AND s.repeatStartDay < :windowEndTime " +
-            "AND s.repeatEndDay > :windowStartTime")
+            "AND s.repeatStartDay <= :windowEndTime " +
+            "AND s.itemType = :itemType "+
+            "AND s.repeatEndDay >= :windowStartTime")
     List<ScheduleItem> findOverlappingByGroupId(
+            @Param("itemType") String itemType,
             @Param("groupId") Long groupId,
-            @Param("windowStartTime") LocalDateTime windowStartTime,
-            @Param("windowEndTime") LocalDateTime windowEndTime);
+            @Param("windowStartTime") LocalDate windowStartTime,
+            @Param("windowEndTime") LocalDate windowEndTime);
 
 
     @Query("SELECT s FROM ScheduleItem s WHERE s.userId = :userId " +
-            "AND s.repeatStartDay < :windowEndTime " +
-            "AND s.repeatEndDay > :windowStartTime")
+            "AND s.repeatStartDay <= :windowEndTime " +
+            "AND s.itemType = :itemType "+
+            "AND s.repeatEndDay >= :windowStartTime")
     List<ScheduleItem> findOverlappingByUserId(
+            @Param("itemType") String itemType,
             @Param("userId") Long userId,
-            @Param("windowStartTime") LocalDateTime windowStartTime,
-            @Param("windowEndTime") LocalDateTime windowEndTime);
+            @Param("windowStartTime") LocalDate windowStartTime,
+            @Param("windowEndTime") LocalDate windowEndTime);
 
 
 
-    @Query("SELECT s FROM ScheduleItem s WHERE s.userId = :userId " +
+    @Query("SELECT s FROM ScheduleItem s WHERE " +
+            "s.userId = :userId " +
+            "AND s.itemType = :itemType "+
             "AND s.groupId = :groupId "+
-            "AND s.repeatStartDay < :windowEndTime " +
-            "AND s.repeatEndDay > :windowStartTime")
+            "AND s.repeatStartDay <= :windowEndTime " +
+            "AND s.repeatEndDay >= :windowStartTime")
     List<ScheduleItem> findOverlappingByGroupIdAndUserId(
+
+            @Param("itemType") String itemType,
             @Param("groupId") Long groupId,
             @Param("userId") Long userId,
-            @Param("windowStartTime") LocalDateTime windowStartTime,
-            @Param("windowEndTime") LocalDateTime windowEndTime);
+            @Param("windowStartTime") LocalDate windowStartTime,
+            @Param("windowEndTime") LocalDate windowEndTime);
 
     /**
      * 根据groupId查询日程项

@@ -81,3 +81,7 @@ app:
         uri: /subPackages/study-tools/pages/writing/stroke-order
         itemType: path
         status: active
+      - itemTitle: 理财计划
+        uri: /subPackages/financial-plan/pages/list/index
+        itemType: path
+        status: active
