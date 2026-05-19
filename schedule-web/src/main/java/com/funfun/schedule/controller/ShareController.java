@@ -80,6 +80,10 @@ public class ShareController {
                 JSONObject shareContent = JSON.parseObject(shareRecord.getContent());
                 infoMap.put("data",shareContent);
                 return CommonResponse.success(infoMap);
+            case "invitation":
+                JSONObject invitationContent = JSON.parseObject(shareRecord.getContent());
+                infoMap.put("data", invitationContent);
+                return CommonResponse.success(infoMap);
 
         }
         return  CommonResponse.success(record.get().getContent());

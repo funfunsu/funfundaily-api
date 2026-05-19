@@ -31,4 +31,8 @@ public interface UniversalRecordRepository extends JpaRepository<UniversalRecord
      */
     @Query("SELECT ur FROM UniversalRecord ur WHERE ur.scene = :scene AND ur.sceneVar = :sceneVar")
     List<UniversalRecord> findRangeBySceneAndSceneVar(@Param("scene") String scene, @Param("sceneVar") String sceneVar);
+
+    List<UniversalRecord> findByCreatedByAndSceneOrderByCreatedTimeDesc(Long createdBy, String scene);
+
+    List<UniversalRecord> findBySceneAndSceneVarOrderByCreatedTimeDesc(String scene, String sceneVar);
 }
