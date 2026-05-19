@@ -50,7 +50,7 @@ VALUES (
   'system',
   'discovery',
   'default',
-  JSON '[{"id":null,"itemTitle":"积分管理","itemType":"path","uri":"/subPackages/points/pages/points-product-manage","status":"active"},{"id":null,"itemTitle":"积分兑换","itemType":"path","uri":"/subPackages/points/pages/points-exchange","status":"active"},{"id":null,"itemTitle":"汉字书写","itemType":"path","uri":"/subPackages/study-tools/pages/writing/stroke-order","status":"active"},{"id":null,"itemTitle":"理财计划","itemType":"path","uri":"/subPackages/financial-plan/pages/list/index","status":"active"},{"id":null,"itemTitle":"家庭账本","itemType":"path","uri":"/subPackages/study-tools/pages/ledger/index","status":"active"}]',
+  JSON '[{"id":null,"itemTitle":"积分管理","itemType":"path","uri":"/subPackages/points/pages/points-product-manage","status":"active"},{"id":null,"itemTitle":"积分兑换","itemType":"path","uri":"/subPackages/points/pages/points-exchange","status":"active"},{"id":null,"itemTitle":"汉字书写","itemType":"path","uri":"/subPackages/study-tools/pages/writing/stroke-order","status":"active"},{"id":null,"itemTitle":"理财计划","itemType":"path","uri":"/subPackages/financial-plan/pages/list/index","status":"active"},{"id":null,"itemTitle":"家庭账本","itemType":"path","uri":"/subPackages/study-tools/pages/ledger/index","status":"active"},{"id":null,"itemTitle":"邀请函","itemType":"path","uri":"/subPackages/invitation/pages/list","status":"active"}]',
   0,
   0
 );

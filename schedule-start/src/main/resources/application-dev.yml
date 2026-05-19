@@ -85,3 +85,7 @@ app:
         uri: /subPackages/financial-plan/pages/list/index
         itemType: path
         status: active
+      - itemTitle: 邀请函
+        uri: /subPackages/invitation/pages/list
+        itemType: path
+        status: active
