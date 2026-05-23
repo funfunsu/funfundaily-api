@@ -285,6 +285,13 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
 
     @Override
+    public List<ScheduleItemDTO> getPlanItems(Long groupId, ScheduleItemType itemType) {
+        List<ScheduleItem> items = scheduleItemRepository
+                .findByGroupIdAndItemTypeAndCloseStatusNot(groupId, itemType.name(), CloseStatus.CLOSE);
+        return scheduleItemMapper.toDTOList(items);
+    }
+
+    @Override
     public List<ScheduleListItemDTO> getScheduleItemsByDateRange(Long groupId, Long userId, LocalDate fromDate, LocalDate toDate,ScheduleItemType scheduleItemType) {
         try {
             List<ScheduleItemDTO> allScheduleItemDTOS = getItemList(groupId,userId,scheduleItemType,fromDate,toDate);

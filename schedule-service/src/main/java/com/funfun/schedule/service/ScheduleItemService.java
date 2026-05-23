@@ -115,6 +115,15 @@ public interface ScheduleItemService {
     List<ScheduleItemDTO> getItemListByParentIds(List<Long> parentIds);
 
     /**
+     * 月度计划：查询某群组下、指定类型、未关闭的全部项（原始列表，不按天展开）。
+     * 由前端按月份归属判定一次性 / 周期性事件。
+     * @param groupId 组ID
+     * @param itemType 项目类型（monthlyPlan）
+     * @return 原始日程项 DTO 列表
+     */
+    List<ScheduleItemDTO> getPlanItems(Long groupId, ScheduleItemType itemType);
+
+    /**
      * 根据groupId、userId、起始日期和结束日期查询日程项，并按日期分组
      * @param groupId 组ID
      * @param userId 人员ID

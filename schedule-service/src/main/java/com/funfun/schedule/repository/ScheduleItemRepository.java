@@ -48,6 +48,13 @@ public interface ScheduleItemRepository extends JpaRepository<ScheduleItem, Long
      */
     List<ScheduleItem> findByGroupIdAndUserIdAndItemTypeAndCloseStatus(
             Long groupId, Long userId, String itemType, CloseStatus closeStatus);
+
+    /**
+     * 月度计划：某群组下、指定类型、未关闭的全部项（按群组共享，不做日期窗口/按天展开过滤）。
+     * 前端按月份归属判定一次性 / 周期性事件，因此这里返回原始列表即可。
+     */
+    List<ScheduleItem> findByGroupIdAndItemTypeAndCloseStatusNot(
+            Long groupId, String itemType, CloseStatus closeStatus);
     /**
      * 查找在指定时间窗口内有活动（重复周期与窗口重叠）且属于指定组的日程项。
      * 时间重叠条件：schedule.repeatStartDay < windowEndTime AND schedule.repeatEndDay > windowStartTime
