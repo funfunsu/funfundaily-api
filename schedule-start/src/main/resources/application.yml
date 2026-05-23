@@ -32,3 +32,14 @@ app:
       - "https://funfun.com"
   # 发现页条目（app.discovery.items）按环境维护，分别在
   # application-dev.yml / application-prod.yml 中配置。
+
+# 开放接口（OpenAPI / MCP）访问令牌：每个 token 绑定一个 groupId，
+# 请求只能访问该群组数据（基于 groupId 的数据隔离）。
+# 实际令牌按环境在 application-dev.yml / application-prod.yml 配置；
+# 生产环境强烈建议用环境变量注入，不要硬编码到仓库。
+openapi:
+  tokens: []
+#    - token: <随机长字符串>
+#      groupId: 1
+#      name: 家庭A
+#      enabled: true

@@ -5,6 +5,7 @@ import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleItemUpdateScope;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.enums.CloseStatus;
 import com.funfun.schedule.enums.ScheduleItemType;
 import net.bytebuddy.asm.Advice;
 
@@ -41,6 +42,18 @@ public interface ScheduleItemService {
 
     String getTaskKey(ScheduleItemDTO scheduleItemDTO, LocalDate taskTime);
     ScheduleItem saveForTaskUpdate(Long id, ScheduleItemUpdateScope updateScope);
+
+    /**
+     * 设置日程项关注状态（停止关注 / 恢复关注）。
+     * @param id 日程项ID
+     * @param closeStatus CLOSE=停止关注，OPEN=恢复关注
+     */
+    ScheduleItem updateCloseStatus(Long id, CloseStatus closeStatus);
+
+    /**
+     * 查询某成员在某组下、指定类型、已停止关注（CLOSE）的日程项扁平列表（用于恢复入口）。
+     */
+    List<ScheduleItemDTO> getClosedItems(Long groupId, Long userId, ScheduleItemType itemType);
 
     /**
      * 删除日程项

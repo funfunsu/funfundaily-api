@@ -1,160 +1,82 @@
 package com.funfun.schedule.controller;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
 import com.funfun.schedule.context.UserContext;
-import com.funfun.schedule.entity.UniversalRecord;
+import com.funfun.schedule.dto.InvitationDTO;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
-import com.funfun.schedule.repository.UniversalRecordRepository;
+import com.funfun.schedule.service.InvitationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
+/**
+ * 邀请函接口。邀请函以 schedule_item 存储：
+ * 发出的邀请 item_type=invSent；收到的邀请 item_type=invRecv（parentId 指向对应 invSent 记录）。
+ */
 @RestController
 @RequestMapping("/api/invitation")
 public class InvitationController {
 
-    private static final String SCENE = "invitation";
-
     @Autowired
-    private UniversalRecordRepository universalRecordRepository;
+    private InvitationService invitationService;
 
+    /**
+     * 邀请函主页列表：当前用户「我发出的」（限定群组）+「我收到的」（不限群组）。
+     */
     @GetMapping("/list")
     public CommonResponse<List<InvitationDTO>> list(@RequestParam Long groupId) {
-        if (groupId == null) {
-            CommonException.PARAM_INVALID.throwsError("groupId 不能为空");
-        }
-        List<UniversalRecord> records =
-                universalRecordRepository.findBySceneAndSceneVarOrderByCreatedTimeDesc(SCENE, String.valueOf(groupId));
-        List<InvitationDTO> result = new ArrayList<>();
-        for (UniversalRecord r : records) {
-            result.add(toDTO(r));
-        }
-        return CommonResponse.success(result);
-    }
-
-    @PostMapping("/save")
-    public CommonResponse<InvitationDTO> save(@RequestBody SaveInvitationRequest request) {
         Long userId = UserContext.getUserId();
-        if (request.getGroupId() == null) {
-            CommonException.PARAM_INVALID.throwsError("groupId 不能为空");
-        }
-
-        JSONObject content = new JSONObject();
-        content.put("title", request.getTitle());
-        content.put("eventTime", request.getEventTime());
-        content.put("address", request.getAddress());
-        content.put("body", request.getBody());
-        content.put("cardStyle", request.getCardStyle());
-
-        UniversalRecord record;
-        if (request.getId() != null) {
-            Optional<UniversalRecord> existing = universalRecordRepository.findById(request.getId());
-            if (existing.isEmpty() || !userId.equals(existing.get().getCreatedBy())) {
-                CommonException.NOT_ALLOWED.throwsError("邀请函不存在或无权限");
-            }
-            record = existing.get();
-        } else {
-            record = new UniversalRecord();
-            record.setScene(SCENE);
-            record.setBusinessKey(UUID.randomUUID().toString().replace("-", ""));
-            record.setCreatedBy(userId);
-        }
-        record.setSceneVar(String.valueOf(request.getGroupId()));
-        record.setContent(content.toJSONString());
-        record.setUpdatedBy(userId);
-
-        record = universalRecordRepository.save(record);
-        return CommonResponse.success(toDTO(record));
+        return CommonResponse.success(invitationService.listForHome(userId, groupId));
     }
 
+    /**
+     * 按 id 查询单条邀请函详情。
+     */
+    @GetMapping("/{id}")
+    public CommonResponse<InvitationDTO> get(@PathVariable Long id) {
+        return CommonResponse.success(invitationService.getById(id));
+    }
+
+    /**
+     * 创建 / 更新「发出的邀请」。更新时若时间/地点变更会级联同步收到记录。
+     */
+    @PostMapping("/save")
+    public CommonResponse<InvitationDTO> save(@RequestBody InvitationDTO request) {
+        Long userId = UserContext.getUserId();
+        return CommonResponse.success(invitationService.saveSent(userId, request));
+    }
+
+    /**
+     * 删除「发出的邀请」（仅创建人）。
+     */
     @DeleteMapping("/{id}")
     public CommonResponse<Void> delete(@PathVariable Long id) {
         Long userId = UserContext.getUserId();
-        Optional<UniversalRecord> existing = universalRecordRepository.findById(id);
-        if (existing.isEmpty() || !userId.equals(existing.get().getCreatedBy())) {
-            CommonException.NOT_ALLOWED.throwsError("邀请函不存在或无权限");
-        }
-        universalRecordRepository.deleteById(id);
+        invitationService.deleteSent(userId, id);
         return CommonResponse.success();
     }
 
-    private InvitationDTO toDTO(UniversalRecord record) {
-        InvitationDTO dto = new InvitationDTO();
-        dto.setId(record.getId());
-        dto.setCreatedBy(record.getCreatedBy());
-        if (record.getSceneVar() != null) {
-            try {
-                dto.setGroupId(Long.valueOf(record.getSceneVar()));
-            } catch (NumberFormatException ignore) {
-            }
+    /**
+     * 受邀人「收下邀请」：依据原邀请 id 拷贝当前数据生成一条收到记录。
+     */
+    @PostMapping("/accept")
+    public CommonResponse<InvitationDTO> accept(@RequestBody AcceptInvitationRequest request) {
+        Long userId = UserContext.getUserId();
+        if (userId == null) {
+            CommonException.LOGIN_INVALID.throwsError("请先登录");
         }
-        JSONObject content = JSON.parseObject(record.getContent());
-        if (content != null) {
-            dto.setTitle(content.getString("title"));
-            dto.setEventTime(content.getString("eventTime"));
-            dto.setAddress(content.getString("address"));
-            dto.setBody(content.getString("body"));
-            dto.setCardStyle(content.getString("cardStyle"));
-        }
-        return dto;
+        return CommonResponse.success(
+                invitationService.accept(userId, request.getInvitationId(), request.getRecipientName()));
     }
 
-    public static class InvitationDTO {
-        private Long id;
-        private Long groupId;
-        private Long createdBy;
-        private String title;
-        private String eventTime;
-        private String address;
-        private String body;
-        private String cardStyle;
+    public static class AcceptInvitationRequest {
+        private Long invitationId;
+        private String recipientName;
 
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-        public Long getGroupId() { return groupId; }
-        public void setGroupId(Long groupId) { this.groupId = groupId; }
-        public Long getCreatedBy() { return createdBy; }
-        public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
-        public String getTitle() { return title; }
-        public void setTitle(String title) { this.title = title; }
-        public String getEventTime() { return eventTime; }
-        public void setEventTime(String eventTime) { this.eventTime = eventTime; }
-        public String getAddress() { return address; }
-        public void setAddress(String address) { this.address = address; }
-        public String getBody() { return body; }
-        public void setBody(String body) { this.body = body; }
-        public String getCardStyle() { return cardStyle; }
-        public void setCardStyle(String cardStyle) { this.cardStyle = cardStyle; }
-    }
-
-    public static class SaveInvitationRequest {
-        private Long id;
-        private Long groupId;
-        private String title;
-        private String eventTime;
-        private String address;
-        private String body;
-        private String cardStyle;
-
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-        public Long getGroupId() { return groupId; }
-        public void setGroupId(Long groupId) { this.groupId = groupId; }
-        public String getTitle() { return title; }
-        public void setTitle(String title) { this.title = title; }
-        public String getEventTime() { return eventTime; }
-        public void setEventTime(String eventTime) { this.eventTime = eventTime; }
-        public String getAddress() { return address; }
-        public void setAddress(String address) { this.address = address; }
-        public String getBody() { return body; }
-        public void setBody(String body) { this.body = body; }
-        public String getCardStyle() { return cardStyle; }
-        public void setCardStyle(String cardStyle) { this.cardStyle = cardStyle; }
+        public Long getInvitationId() { return invitationId; }
+        public void setInvitationId(Long invitationId) { this.invitationId = invitationId; }
+        public String getRecipientName() { return recipientName; }
+        public void setRecipientName(String recipientName) { this.recipientName = recipientName; }
     }
 }

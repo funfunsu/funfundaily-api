@@ -9,8 +9,10 @@ import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.dto.schedule.CopyScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.AScheduleItemRequest;
+import com.funfun.schedule.dto.schedule.CloseScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.GetScheduleItemRequest;
 import com.funfun.schedule.entity.ShareRecord;
+import com.funfun.schedule.enums.CloseStatus;
 import com.funfun.schedule.enums.GroupRole;
 import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.exception.CommonException;
@@ -116,6 +118,30 @@ public class ScheduleItemController {
         List<ScheduleListItemDTO> scheduleItemsByDate =
                 scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), request.getScheduleItemType());
         return CommonResponse.success(scheduleItemsByDate);
+    }
+
+    /**
+     * 停止关注 / 恢复关注 某个日程项（事件）。
+     * closeStatus = CLOSE 停止关注（全局隐藏），OPEN 恢复关注。
+     */
+    @PostMapping("/close")
+    @RequiredDataPermission
+    public CommonResponse<Boolean> close(@RequestBody CloseScheduleItemRequest request) {
+        Long idLong = Long.parseLong(request.getId());
+        CloseStatus closeStatus = request.getCloseStatus() == null ? CloseStatus.CLOSE : request.getCloseStatus();
+        scheduleItemService.updateCloseStatus(idLong, closeStatus);
+        return CommonResponse.success(true);
+    }
+
+    /**
+     * 查询已停止关注（CLOSE）的日程项列表，用于「恢复关注」入口。
+     */
+    @PostMapping("/closed/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<?> closedList(@RequestBody GetScheduleItemRequest request) {
+        Long groupIdLong = request.getGroupId() == null ? null : Long.valueOf(request.getGroupId());
+        Long userIdLong = request.getTargetUserId() == null ? UserContext.getUserId() : Long.valueOf(request.getTargetUserId());
+        return CommonResponse.success(scheduleItemService.getClosedItems(groupIdLong, userIdLong, request.getScheduleItemType()));
     }
 
     /**

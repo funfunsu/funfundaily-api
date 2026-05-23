@@ -1,6 +1,7 @@
 package com.funfun.schedule.config;
 
 import com.funfun.schedule.interceptor.AuthInterceptor;
+import com.funfun.schedule.interceptor.OpenApiAuthInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,10 +41,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private AuthInterceptor jwtAuthInterceptor;
 
+    @Autowired
+    private OpenApiAuthInterceptor openApiAuthInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtAuthInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/login", "/api/public/**");
+        // 开放接口（OpenAPI / MCP）：独立的 Bearer Token 鉴权链路，token 绑定 groupId。
+        registry.addInterceptor(openApiAuthInterceptor)
+                .addPathPatterns("/openapi/**");
     }
 }
