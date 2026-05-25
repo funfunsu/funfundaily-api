@@ -23,8 +23,8 @@ public class ScheduleItem {
     @Column(name = "item_title", length = 64)
     private String itemTitle; // 项目标题
 
-    @Column(name = "item_desc", length = 128)
-    private String itemDesc; // 项目描述
+    @Column(name = "item_desc", columnDefinition = "TEXT")
+    private String itemDesc; // 项目描述（TEXT，支持长文本；prod 迁移见 script/update_sql.sql）
 
     @Column(name = "location", length = 128)
     private String location; // 位置
