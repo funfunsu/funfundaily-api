@@ -1,5 +1,19 @@
+
+-- ============================================================
+-- 放大 schedule_item.item_desc：VARCHAR(128) -> TEXT
+-- ============================================================
+ALTER TABLE schedule_item MODIFY COLUMN item_desc TEXT NULL COMMENT '事项描述';
+
+-- ============================================================
+-- 发现页新增「月度计划」入口
+-- universal_record(scene=system, scene_var=discovery, business_key=default).content 为 JSON 数组。
+-- 用 JSON_ARRAY_APPEND 仅追加该条目，不覆盖已有内容；JSON_SEARCH 守卫保证可重复执行不重复追加。
+-- ============================================================
 UPDATE universal_record
-SET content = '[{"id":null,"itemTitle":"任务打卡","itemType":"path","uri":"/pages/tabBar/task","status":"active","category":"打卡与激励","icon":"✅"},{"id":null,"itemTitle":"积分管理","itemType":"path","uri":"/subPackages/points/pages/points-product-manage","status":"active","category":"打卡与激励","icon":"🎯"},{"id":null,"itemTitle":"积分兑换","itemType":"path","uri":"/subPackages/points/pages/points-exchange","status":"active","category":"打卡与激励","icon":"🎁"},{"id":null,"itemTitle":"汉字书写","itemType":"path","uri":"/subPackages/study-tools/pages/writing/stroke-order","status":"active","category":"学习成长","icon":"✍️"},{"id":null,"itemTitle":"理财计划","itemType":"path","uri":"/subPackages/financial-plan/pages/list/index","status":"active","category":"家庭财务","icon":"📈"},{"id":null,"itemTitle":"家庭账本","itemType":"path","uri":"/subPackages/study-tools/pages/ledger/index","status":"active","category":"家庭财务","icon":"📒"},{"id":null,"itemTitle":"邀请函","itemType":"path","uri":"/subPackages/invitation/pages/list","status":"active","category":"生活工具","icon":"✉️"},{"id":null,"itemTitle":"大事记","itemType":"path","uri":"/subPackages/event/pages/event/index","status":"active","category":"记录美好","icon":"✨"}]'
+SET content = JSON_ARRAY_APPEND(
+        content, '$',
+        CAST('{"id":null,"itemTitle":"月度计划","itemType":"path","uri":"/subPackages/monthly-plan/pages/list/index","status":"active","category":"生活工具","icon":"🗓️"}' AS JSON))
 WHERE scene = 'system'
   AND scene_var = 'discovery'
-  AND business_key = 'default';
+  AND business_key = 'default'
+  AND JSON_SEARCH(content, 'one', '/subPackages/monthly-plan/pages/list/index') IS NULL;

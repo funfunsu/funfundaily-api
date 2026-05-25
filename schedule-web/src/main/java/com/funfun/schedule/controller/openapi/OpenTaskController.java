@@ -43,7 +43,7 @@ public class OpenTaskController {
             @RequestParam(value = "userId", required = false) Long userId,
             @RequestParam(value = "parentId", required = false) Long parentId) {
         Long boundGroupId = resolveGroupId(groupId);
-        return CommonResponse.success(todoTaskService.getTodoTaskList(boundGroupId, userId, parentId));
+        return CommonResponse.success(todoTaskService.getTodoTaskList(boundGroupId, resolveUserId(userId), parentId));
     }
 
     @GetMapping("/next")
@@ -52,14 +52,14 @@ public class OpenTaskController {
             @RequestParam(value = "userId", required = false) Long userId,
             @RequestParam(value = "parentId", required = false) Long parentId) {
         Long boundGroupId = resolveGroupId(groupId);
-        return CommonResponse.success(todoTaskService.getNextTodoTask(boundGroupId, userId, parentId));
+        return CommonResponse.success(todoTaskService.getNextTodoTask(boundGroupId, resolveUserId(userId), parentId));
     }
 
     @PostMapping("/checkin")
     public CommonResponse<Long> checkInTask(@RequestBody OpenCheckinRequest request) {
         Long boundGroupId = resolveGroupId(request.getGroupId());
         Long recordId = todoTaskService.checkInTask(
-                boundGroupId, request.getTaskId(), request.getUserId(), request.getTaskTime());
+                boundGroupId, request.getTaskId(), resolveUserId(request.getUserId()), request.getTaskTime());
         return CommonResponse.success(recordId);
     }
 
@@ -77,5 +77,14 @@ public class OpenTaskController {
             CommonException.NOT_ALLOWED.throwsError("无权访问该群组数据");
         }
         return boundGroupId;
+    }
+
+    /**
+     * 解析本次请求的 userId：未显式传入时回退到令牌绑定的成员（group_member.user_id），
+     * 这样令牌就「代表该成员」操作 —— 列表/下一项默认只看该成员的任务，打卡也记到该成员名下。
+     * 显式传入则按调用方意图（仍在同 group 内，由 groupId 隔离保证）。
+     */
+    private Long resolveUserId(Long requestUserId) {
+        return requestUserId != null ? requestUserId : OpenApiContext.getUserId();
     }
 }

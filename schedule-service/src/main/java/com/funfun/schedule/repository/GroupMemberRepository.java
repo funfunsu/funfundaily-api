@@ -42,6 +42,14 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
     Optional<GroupMember> findByGroupIdAndUserId(Long groupId, Long userId);
 
     /**
+     * 开放接口（OpenAPI / MCP）鉴权：根据访问令牌找到绑定的群组成员。
+     * 令牌一对一绑定 group_member 行，即同时确定 groupId（数据隔离）与归属 userId（管理维度）。
+     * @param openApiToken 访问令牌
+     * @return 绑定该令牌的群组成员（Optional 包装）
+     */
+    Optional<GroupMember> findByOpenApiToken(String openApiToken);
+
+    /**
      * 加锁查询群组成员，保证积分扣减时的并发安全。
      *
      * @param groupId 群组ID

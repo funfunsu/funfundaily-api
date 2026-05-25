@@ -53,13 +53,8 @@ jwt:
   secret: k3VhG8nR2pL9qWxYzA7bNcM1oP5sT6uIvJ4eQ0fD2gH8jK3lZ=  # 至少32位
   expire: 7200 # token过期时间（秒），默认2小时
 
-# 开发环境：开放接口（OpenAPI / MCP）测试令牌，绑定种子数据中的 groupId=1
-openapi:
-  tokens:
-    - token: dev-openapi-token-group1
-      groupId: 1
-      name: 开发测试群组
-      enabled: true
+# 开放接口令牌已改为表配置（fun_group.open_api_token）。dev 种子令牌 dev-openapi-token-group1
+# 由 data.sql 写入 groupId=1 的群组行，无需在此配置。
 
 
 app:

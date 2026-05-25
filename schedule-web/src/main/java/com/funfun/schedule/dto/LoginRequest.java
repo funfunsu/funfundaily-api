@@ -2,7 +2,7 @@ package com.funfun.schedule.dto;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * 登录请求参数（小程序端传递code）

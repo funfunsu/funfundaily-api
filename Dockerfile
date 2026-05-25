@@ -1,5 +1,9 @@
-# 使用官方 OpenJDK 11 镜像（根据你项目 JDK 版本调整）
-FROM openjdk:11-jre-slim
+# Temurin JDK 17（Spring Boot 3 / Java 17）。
+# 国内云服务器拉不到 Docker Hub，改用国内镜像前缀；如该源不可用，可换成下面任一：
+#   FROM docker.1panel.live/library/eclipse-temurin:17-jre
+#   FROM dockerproxy.cn/library/eclipse-temurin:17-jre
+#   FROM eclipse-temurin:17-jre            # 配置了 registry-mirrors 加速器时用这个
+FROM docker.m.daocloud.io/library/eclipse-temurin:17-jre
 
 # 设置时区（可选但推荐）
 ENV TZ=Asia/Shanghai

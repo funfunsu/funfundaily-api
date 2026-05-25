@@ -7,7 +7,6 @@ import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
 import com.funfun.schedule.enums.CloseStatus;
 import com.funfun.schedule.enums.ScheduleItemType;
-import net.bytebuddy.asm.Advice;
 
 import java.text.ParseException;
 import java.time.LocalDate;

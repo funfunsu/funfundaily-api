@@ -49,7 +49,8 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(jwtAuthInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/login", "/api/public/**");
-        // 开放接口（OpenAPI / MCP）：独立的 Bearer Token 鉴权链路，token 绑定 groupId。
+        // 开放 REST 接口：Bearer Token 鉴权链路，token 绑定 groupId。
+        // （进程内 MCP 的 /mcp/message 是函数式端点，拦截器不生效，改由 McpAuthFilter 鉴权。）
         registry.addInterceptor(openApiAuthInterceptor)
                 .addPathPatterns("/openapi/**");
     }

@@ -1,17 +1,18 @@
 package com.funfun.schedule.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.funfun.schedule.config.OpenApiTokenConfig;
 import com.funfun.schedule.context.OpenApiContext;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.model.CommonResponse;
+import com.funfun.schedule.service.OpenApiPrincipal;
+import com.funfun.schedule.service.OpenApiTokenService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -25,11 +26,11 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 public class OpenApiAuthInterceptor implements HandlerInterceptor {
 
-    private final OpenApiTokenConfig tokenConfig;
+    private final OpenApiTokenService tokenService;
     private final ObjectMapper objectMapper;
 
-    public OpenApiAuthInterceptor(OpenApiTokenConfig tokenConfig, ObjectMapper objectMapper) {
-        this.tokenConfig = tokenConfig;
+    public OpenApiAuthInterceptor(OpenApiTokenService tokenService, ObjectMapper objectMapper) {
+        this.tokenService = tokenService;
         this.objectMapper = objectMapper;
     }
 
@@ -46,13 +47,13 @@ public class OpenApiAuthInterceptor implements HandlerInterceptor {
         }
         String token = header.substring(7).trim();
 
-        OpenApiTokenConfig.TokenEntry entry = tokenConfig.resolve(token);
-        if (entry == null || entry.getGroupId() == null) {
+        OpenApiPrincipal principal = tokenService.resolvePrincipal(token);
+        if (principal == null) {
             return unauthorized(response, "访问令牌无效或已禁用");
         }
 
-        OpenApiContext.setGroupId(entry.getGroupId());
-        OpenApiContext.setTokenName(entry.getName());
+        OpenApiContext.setGroupId(principal.groupId());
+        OpenApiContext.setUserId(principal.userId());
         return true;
     }
 

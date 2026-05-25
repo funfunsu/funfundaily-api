@@ -2,7 +2,7 @@ package com.funfun.schedule.entity;
 
 import org.hibernate.annotations.Where;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.Date;
 
 /**
