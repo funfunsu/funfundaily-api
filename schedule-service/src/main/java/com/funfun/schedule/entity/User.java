@@ -1,9 +1,10 @@
 package com.funfun.schedule.entity;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.Date;
 
 /**
@@ -60,7 +61,7 @@ public class User {
     private String userTag; // 用户标签
 
     @Column(name = "ext_info", columnDefinition = "JSON")
-    @Type(type = "json")
+    @JdbcTypeCode(SqlTypes.JSON)
     private JsonNode extInfo; // 扩展信息
 
     @Column(name = "delete_flag", columnDefinition = "TINYINT")

@@ -134,6 +134,19 @@ public class ScheduleItemController {
     }
 
     /**
+     * 月度计划：返回某群组下、指定类型（monthlyPlan）的全部未关闭项（原始列表，不按天展开）。
+     * 家庭月度计划按群组共享，前端据此按月份归属一次性 / 周期性事件。
+     */
+    @PostMapping("/plan/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<?> planList(@RequestBody GetScheduleItemRequest request) {
+        Long groupIdLong = Long.valueOf(request.getGroupId());
+        ScheduleItemType type = request.getScheduleItemType() == null
+                ? ScheduleItemType.monthlyPlan : request.getScheduleItemType();
+        return CommonResponse.success(scheduleItemService.getPlanItems(groupIdLong, type));
+    }
+
+    /**
      * 查询已停止关注（CLOSE）的日程项列表，用于「恢复关注」入口。
      */
     @PostMapping("/closed/list")

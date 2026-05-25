@@ -3,7 +3,7 @@ package com.funfun.schedule.dto;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * 更新用户资料请求 DTO（接收小程序加密信息）

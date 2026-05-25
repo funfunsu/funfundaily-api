@@ -24,13 +24,8 @@ jwt:
   secret: ${JWT_SECRET} # 生产环境通过环境变量注入 32位以上密钥
   expire: 7200 # token过期时间（秒），默认2小时
 
-# 生产环境：开放接口（OpenAPI / MCP）访问令牌，从环境变量注入（token 绑定 groupId）
-openapi:
-  tokens:
-    - token: ${OPENAPI_TOKEN_GROUP1:}
-      groupId: ${OPENAPI_GROUP1_ID:0}
-      name: ${OPENAPI_GROUP1_NAME:group1}
-      enabled: ${OPENAPI_TOKEN_GROUP1_ENABLED:false}
+# 开放接口令牌已改为表配置（fun_group.open_api_token）：用 SQL 设置/轮换，无需环境变量与重启。
+# 见 script/update_sql.sql。
 # 生产环境：日志级别调整（减少日志输出，提升性能）
 logging:
   level:

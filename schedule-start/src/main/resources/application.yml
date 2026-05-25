@@ -4,6 +4,22 @@ server:
 spring:
   profiles:
     active: dev
+  # 进程内 MCP 服务（Spring AI MCP server，WebMVC/Streamable HTTP 传输，不独立部署）。
+  # 单端点 /mcp 承载 JSON-RPC（POST initialize/tools/call，GET 可选 SSE 流），
+  # 由 McpAuthFilter 统一做 Bearer Token 鉴权。
+  # 注意：protocol=STREAMABLE 与旧版 SSE 互斥（替代 SSE）；客户端须用 type:http 指向 /mcp。
+  ai:
+    mcp:
+      server:
+        enabled: true
+        stdio: false
+        type: SYNC
+        protocol: STREAMABLE
+        name: funfun-task-mcp-server
+        version: 0.1.0
+        instructions: "funfun 待办任务 MCP 服务：list/next/checkin。请在请求头携带 Authorization: Bearer <token>，token 绑定 groupId 实现数据隔离。"
+        streamable-http:
+          mcp-endpoint: /mcp
 
 # JWT配置
 jwt:
@@ -33,13 +49,6 @@ app:
   # 发现页条目（app.discovery.items）按环境维护，分别在
   # application-dev.yml / application-prod.yml 中配置。
 
-# 开放接口（OpenAPI / MCP）访问令牌：每个 token 绑定一个 groupId，
-# 请求只能访问该群组数据（基于 groupId 的数据隔离）。
-# 实际令牌按环境在 application-dev.yml / application-prod.yml 配置；
-# 生产环境强烈建议用环境变量注入，不要硬编码到仓库。
-openapi:
-  tokens: []
-#    - token: <随机长字符串>
-#      groupId: 1
-#      name: 家庭A
-#      enabled: true
+# 开放接口（OpenAPI / MCP）访问令牌已改为「表配置」：存在 fun_group.open_api_token 列，
+# 令牌即绑定该群组，做鉴权与基于 groupId 的数据隔离。增删改令牌只需更新该列，无需改配置或重启。
+# dev 的种子令牌见 data.sql；prod 用 SQL 设置（见 script/update_sql.sql）。

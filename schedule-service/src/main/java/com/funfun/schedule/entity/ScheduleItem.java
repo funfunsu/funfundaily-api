@@ -3,7 +3,7 @@ package com.funfun.schedule.entity;
 import com.funfun.schedule.enums.CloseStatus;
 import lombok.Data;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;

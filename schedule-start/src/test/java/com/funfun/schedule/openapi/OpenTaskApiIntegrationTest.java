@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>checkInTask：打卡成功后该任务标记为已完成；跨群组任务打卡被拒绝</li>
  * </ul>
  *
- * <p>dev profile（H2 + {@code openapi.tokens} 配置 dev-openapi-token-group1 → groupId=1），
+ * <p>dev profile（H2 + data.sql 给 group 1 种子令牌 fun_group.open_api_token=dev-openapi-token-group1），
  * {@code @Transactional} 回滚隔离。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
