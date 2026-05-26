@@ -5,7 +5,10 @@ import org.apache.http.HttpEntity;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
@@ -96,6 +99,46 @@ public class HttpUtil {
 
         // 理论上不会走到这里
         throw new IllegalStateException("Unexpected execution path in HttpUtil.get()");
+    }
+
+    /**
+     * 发送 POST 请求（JSON 请求体），返回原始响应字节。
+     * 微信 getwxacodeunlimit 成功时返回二进制图片、失败时返回 JSON，故统一按 byte[] 取回，
+     * 由调用方根据响应内容（是否以 '{' 开头）区分图片与错误。
+     *
+     * @param url      完整请求地址（含 access_token 等查询参数）
+     * @param jsonBody JSON 字符串请求体
+     * @return 响应体字节（2xx）
+     * @throws RuntimeException 网络异常、超时、非 2xx 响应等
+     */
+    public static byte[] postForBytes(String url, String jsonBody) {
+        long start = System.currentTimeMillis();
+        log.debug("HTTP POST 请求: {} | body: {}", url, jsonBody);
+
+        HttpPost httpPost = new HttpPost(url);
+        httpPost.setHeader("Accept", "*/*");
+        httpPost.setHeader("User-Agent", "FunFun-Schedule/1.0");
+        httpPost.setEntity(new StringEntity(jsonBody == null ? "" : jsonBody,
+                ContentType.create("application/json", StandardCharsets.UTF_8)));
+
+        try (CloseableHttpResponse response = httpClient.execute(httpPost, HttpClientContext.create())) {
+            int statusCode = response.getStatusLine().getStatusCode();
+            HttpEntity entity = response.getEntity();
+            byte[] body = entity != null ? EntityUtils.toByteArray(entity) : new byte[0];
+
+            long cost = System.currentTimeMillis() - start;
+            log.info("HTTP POST 响应 [{} ms] | URL: {} | Status: {} | Body length: {}",
+                    cost, url, statusCode, body.length);
+
+            if (statusCode >= 200 && statusCode < 300) {
+                return body;
+            }
+            throw new RuntimeException("HTTP POST 请求失败，状态码: " + statusCode);
+        } catch (IOException e) {
+            long cost = System.currentTimeMillis() - start;
+            log.warn("HTTP POST 异常 | URL: {} | 耗时: {} ms | 错误: {}", url, cost, e.getMessage());
+            throw new RuntimeException("HTTP POST 请求失败: " + e.getMessage(), e);
+        }
     }
 
     // 辅助方法：安全睡眠（不抛中断异常）

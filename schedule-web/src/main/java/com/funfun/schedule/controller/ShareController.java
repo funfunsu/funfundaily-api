@@ -1,6 +1,7 @@
 package com.funfun.schedule.controller;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import com.funfun.schedule.context.UserContext;
@@ -19,6 +20,7 @@ import java.text.ParseException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,11 @@ public class ShareController {
     private GroupMemberService groupMemberService;
     @Autowired
     private ScheduleGroupService scheduleGroupService;
+    @Autowired
+    private WeChatQrcodeService weChatQrcodeService;
+
+    /** 识别二维码后默认打开的小程序页面（不含前导斜杠、不带 query） */
+    private static final String DEFAULT_QRCODE_PAGE = "pages/task/share";
 
     // 创建分享
     @PostMapping("/create")
@@ -51,6 +58,22 @@ public class ShareController {
                 request.getExpireHours()
         );
         return CommonResponse.success(Map.of("token", token));
+    }
+
+    /**
+     * 生成分享二维码（微信无限制小程序码）。
+     * 以分享 token 作为 scene，识别后打开 page 并在 query.scene 中带回 token。
+     * 返回 base64，前端写临时文件后画进分享长图。
+     */
+    @PostMapping("/qrcode")
+    public CommonResponse<Map<String, String>> shareQrcode(@RequestBody ShareQrcodeRequest request) {
+        String page = request.getPage() != null && !request.getPage().isBlank()
+                ? request.getPage() : DEFAULT_QRCODE_PAGE;
+        byte[] png = weChatQrcodeService.getUnlimitedQrCode(request.getToken(), page);
+        Map<String, String> result = new HashMap<>();
+        result.put("contentType", "image/png");
+        result.put("qrBase64", Base64.getEncoder().encodeToString(png));
+        return CommonResponse.success(result);
     }
 
     // 获取分享内容
@@ -83,6 +106,11 @@ public class ShareController {
             case "invitation":
                 JSONObject invitationContent = JSON.parseObject(shareRecord.getContent());
                 infoMap.put("data", invitationContent);
+                return CommonResponse.success(infoMap);
+            case "task_share":
+                // 任务分享：content 是选中任务的 JSON 数组，返回 { creatorNickname, data:[...] }
+                JSONArray taskList = JSON.parseArray(shareRecord.getContent());
+                infoMap.put("data", taskList);
                 return CommonResponse.success(infoMap);
 
         }
@@ -129,5 +157,15 @@ public class ShareController {
         public void setContent(String content) { this.content = content; }
         public int getExpireHours() { return expireHours; }
         public void setExpireHours(int expireHours) { this.expireHours = expireHours; }
+    }
+
+    // 生成分享二维码请求体
+    public static class ShareQrcodeRequest {
+        private String token;   // 分享 token（作为小程序码 scene）
+        private String page;    // 可选，识别后打开的小程序页面，默认 pages/task/share
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
+        public String getPage() { return page; }
+        public void setPage(String page) { this.page = page; }
     }
 }
