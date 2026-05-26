@@ -39,9 +39,15 @@ spring:
 # 开发环境：微信小程序测试号配置（替换为你的测试号 appid/secret）
 wechat:
   mini:
-    appid: your-wechat-dev-appid # 微信测试号 appid
+    appid: your-wechat-dev-appid # 微信测试号 appid（占位时分享二维码会返回 dev 占位码，不可真实扫描）
     secret: your-wechat-dev-secret # 微信测试号 secret
     jscode2session-url: https://api.weixin.qq.com/sns/jscode2session
+    # 分享小程序码（getUnlimitedQRCode）配置：
+    # qrcode-env-version：生成的码打开哪个小程序版本 develop(开发版)/trial(体验版)/release(正式版)。
+    #   用真实 appid 联调时务必与你扫码进入的版本一致，否则会打开旧版本、解析不到 scene（表现为「缺少分享令牌」）。
+    qrcode-env-version: trial
+    # 是否校验 page 已发布；联调/未发布页面用 false
+    qrcode-check-path: false
     # mock 加密数据（前端可直接使用，无需调用 wx.getUserProfile）
     mock:
       encryptedData: "mock-encrypted-data" # 实际测试时，可使用微信开发者工具生成的真实加密数据
@@ -52,6 +58,9 @@ wechat:
 jwt:
   secret: k3VhG8nR2pL9qWxYzA7bNcM1oP5sT6uIvJ4eQ0fD2gH8jK3lZ=  # 至少32位
   expire: 7200 # token过期时间（秒），默认2小时
+
+# 开放接口令牌已改为表配置（fun_group.open_api_token）。dev 种子令牌 dev-openapi-token-group1
+# 由 data.sql 写入 groupId=1 的群组行，无需在此配置。
 
 
 app:
@@ -83,5 +92,9 @@ app:
         status: active
       - itemTitle: 理财计划
         uri: /subPackages/financial-plan/pages/list/index
+        itemType: path
+        status: active
+      - itemTitle: 邀请函
+        uri: /subPackages/invitation/pages/list
         itemType: path
         status: active

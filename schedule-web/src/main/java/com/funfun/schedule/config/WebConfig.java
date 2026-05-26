@@ -1,6 +1,7 @@
 package com.funfun.schedule.config;
 
 import com.funfun.schedule.interceptor.AuthInterceptor;
+import com.funfun.schedule.interceptor.OpenApiAuthInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,10 +41,17 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private AuthInterceptor jwtAuthInterceptor;
 
+    @Autowired
+    private OpenApiAuthInterceptor openApiAuthInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtAuthInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/login", "/api/public/**");
+        // 开放 REST 接口：Bearer Token 鉴权链路，token 绑定 groupId。
+        // （进程内 MCP 的 /mcp/message 是函数式端点，拦截器不生效，改由 McpAuthFilter 鉴权。）
+        registry.addInterceptor(openApiAuthInterceptor)
+                .addPathPatterns("/openapi/**");
     }
 }

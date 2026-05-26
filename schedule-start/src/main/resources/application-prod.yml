@@ -23,6 +23,9 @@ wechat:
 jwt:
   secret: ${JWT_SECRET} # 生产环境通过环境变量注入 32位以上密钥
   expire: 7200 # token过期时间（秒），默认2小时
+
+# 开放接口令牌已改为表配置（fun_group.open_api_token）：用 SQL 设置/轮换，无需环境变量与重启。
+# 见 script/update_sql.sql。
 # 生产环境：日志级别调整（减少日志输出，提升性能）
 logging:
   level:
@@ -58,6 +61,10 @@ app:
         status: active
       - itemTitle: 理财计划
         uri: /subPackages/financial-plan/pages/list/index
+        itemType: path
+        status: active
+      - itemTitle: 邀请函
+        uri: /subPackages/invitation/pages/list
         itemType: path
         status: active
 

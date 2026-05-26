@@ -3,7 +3,7 @@ package com.funfun.schedule.entity;
 import com.funfun.schedule.enums.VipType;
 import lombok.Data;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity

@@ -5,8 +5,8 @@ import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.dto.ScheduleItemUpdateScope;
 import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.entity.ScheduleItem;
+import com.funfun.schedule.enums.CloseStatus;
 import com.funfun.schedule.enums.ScheduleItemType;
-import net.bytebuddy.asm.Advice;
 
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -41,6 +41,18 @@ public interface ScheduleItemService {
 
     String getTaskKey(ScheduleItemDTO scheduleItemDTO, LocalDate taskTime);
     ScheduleItem saveForTaskUpdate(Long id, ScheduleItemUpdateScope updateScope);
+
+    /**
+     * 设置日程项关注状态（停止关注 / 恢复关注）。
+     * @param id 日程项ID
+     * @param closeStatus CLOSE=停止关注，OPEN=恢复关注
+     */
+    ScheduleItem updateCloseStatus(Long id, CloseStatus closeStatus);
+
+    /**
+     * 查询某成员在某组下、指定类型、已停止关注（CLOSE）的日程项扁平列表（用于恢复入口）。
+     */
+    List<ScheduleItemDTO> getClosedItems(Long groupId, Long userId, ScheduleItemType itemType);
 
     /**
      * 删除日程项
@@ -100,6 +112,15 @@ public interface ScheduleItemService {
 
     List<ScheduleItemDTO> getItemList(List<Long> taskIds);
     List<ScheduleItemDTO> getItemListByParentIds(List<Long> parentIds);
+
+    /**
+     * 月度计划：查询某群组下、指定类型、未关闭的全部项（原始列表，不按天展开）。
+     * 由前端按月份归属判定一次性 / 周期性事件。
+     * @param groupId 组ID
+     * @param itemType 项目类型（monthlyPlan）
+     * @return 原始日程项 DTO 列表
+     */
+    List<ScheduleItemDTO> getPlanItems(Long groupId, ScheduleItemType itemType);
 
     /**
      * 根据groupId、userId、起始日期和结束日期查询日程项，并按日期分组

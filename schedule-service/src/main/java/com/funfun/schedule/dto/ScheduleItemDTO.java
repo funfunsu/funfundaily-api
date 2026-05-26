@@ -6,9 +6,9 @@ import com.funfun.schedule.enums.CloseStatus;
 import com.funfun.schedule.enums.RepeatType;
 import lombok.Data;
 
-import javax.persistence.Column;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
+import jakarta.persistence.Column;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;

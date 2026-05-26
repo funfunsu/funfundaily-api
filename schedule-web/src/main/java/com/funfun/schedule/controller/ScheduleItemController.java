@@ -9,8 +9,10 @@ import com.funfun.schedule.dto.ScheduleListItemDTO;
 import com.funfun.schedule.dto.schedule.CopyScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.CreateScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.AScheduleItemRequest;
+import com.funfun.schedule.dto.schedule.CloseScheduleItemRequest;
 import com.funfun.schedule.dto.schedule.GetScheduleItemRequest;
 import com.funfun.schedule.entity.ShareRecord;
+import com.funfun.schedule.enums.CloseStatus;
 import com.funfun.schedule.enums.GroupRole;
 import com.funfun.schedule.enums.ScheduleItemType;
 import com.funfun.schedule.exception.CommonException;
@@ -116,6 +118,43 @@ public class ScheduleItemController {
         List<ScheduleListItemDTO> scheduleItemsByDate =
                 scheduleItemService.getScheduleItemsByDateRange(groupIdLong, userIdLong, request.getFromDate(), request.getToDate(), request.getScheduleItemType());
         return CommonResponse.success(scheduleItemsByDate);
+    }
+
+    /**
+     * 停止关注 / 恢复关注 某个日程项（事件）。
+     * closeStatus = CLOSE 停止关注（全局隐藏），OPEN 恢复关注。
+     */
+    @PostMapping("/close")
+    @RequiredDataPermission
+    public CommonResponse<Boolean> close(@RequestBody CloseScheduleItemRequest request) {
+        Long idLong = Long.parseLong(request.getId());
+        CloseStatus closeStatus = request.getCloseStatus() == null ? CloseStatus.CLOSE : request.getCloseStatus();
+        scheduleItemService.updateCloseStatus(idLong, closeStatus);
+        return CommonResponse.success(true);
+    }
+
+    /**
+     * 月度计划：返回某群组下、指定类型（monthlyPlan）的全部未关闭项（原始列表，不按天展开）。
+     * 家庭月度计划按群组共享，前端据此按月份归属一次性 / 周期性事件。
+     */
+    @PostMapping("/plan/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<?> planList(@RequestBody GetScheduleItemRequest request) {
+        Long groupIdLong = Long.valueOf(request.getGroupId());
+        ScheduleItemType type = request.getScheduleItemType() == null
+                ? ScheduleItemType.monthlyPlan : request.getScheduleItemType();
+        return CommonResponse.success(scheduleItemService.getPlanItems(groupIdLong, type));
+    }
+
+    /**
+     * 查询已停止关注（CLOSE）的日程项列表，用于「恢复关注」入口。
+     */
+    @PostMapping("/closed/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<?> closedList(@RequestBody GetScheduleItemRequest request) {
+        Long groupIdLong = request.getGroupId() == null ? null : Long.valueOf(request.getGroupId());
+        Long userIdLong = request.getTargetUserId() == null ? UserContext.getUserId() : Long.valueOf(request.getTargetUserId());
+        return CommonResponse.success(scheduleItemService.getClosedItems(groupIdLong, userIdLong, request.getScheduleItemType()));
     }
 
     /**

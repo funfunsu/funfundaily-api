@@ -15,6 +15,10 @@ import com.funfun.schedule.enums.TaskType;
 import com.funfun.schedule.exception.CommonException;
 import com.funfun.schedule.mapper.ScheduleItemMapper;
 import com.funfun.schedule.repository.ScheduleItemRepository;
+import com.funfun.schedule.scheduleitem.ScheduleItemDateRules;
+import com.funfun.schedule.scheduleitem.ScheduleItemSupport;
+import com.funfun.schedule.scheduleitem.ScheduleItemTypeHandler;
+import com.funfun.schedule.scheduleitem.ScheduleItemTypeHandlerRegistry;
 import com.funfun.schedule.service.ScheduleItemService;
 import com.funfun.schedule.util.DateUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +33,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.stream.Collectors;
@@ -43,11 +46,15 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
 
     private final ScheduleItemRepository scheduleItemRepository;
     private final ScheduleItemMapper scheduleItemMapper;
+    private final ScheduleItemTypeHandlerRegistry typeHandlerRegistry;
 
     @Autowired
-    public ScheduleItemServiceImpl(ScheduleItemRepository scheduleItemRepository, ScheduleItemMapper scheduleItemMapper) {
+    public ScheduleItemServiceImpl(ScheduleItemRepository scheduleItemRepository,
+                                   ScheduleItemMapper scheduleItemMapper,
+                                   ScheduleItemTypeHandlerRegistry typeHandlerRegistry) {
         this.scheduleItemRepository = scheduleItemRepository;
         this.scheduleItemMapper = scheduleItemMapper;
+        this.typeHandlerRegistry = typeHandlerRegistry;
     }
 
     @Override
@@ -59,10 +66,6 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
             ScheduleItem scheduleItemEntity = scheduleItemMapper.toEntity(scheduleItemDTO);
             scheduleItemEntity.setUserId(targetUserId);
             scheduleItemEntity.setGroupId(groupId);
-            scheduleItemEntity.setCreateBy(userId);
-            scheduleItemEntity.setUpdateBy(userId);
-            scheduleItemEntity.setCreateTime(new Date());
-            scheduleItemEntity.setUpdateTime(new Date());
 
             if (scheduleItemEntity.getRepeatStartDay() == null){
                 scheduleItemEntity.setRepeatStartDay(DateUtil.getStartOfDay(LocalDateTime.now()).toLocalDate());
@@ -72,13 +75,8 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
                 scheduleItemEntity.setRepeatEndDay(DateUtil.getEndOfDay(LocalDateTime.now()).toLocalDate());
             }
 
-            // MapStruct.toEntity 会用 DTO 里 null 值覆盖字段初始化默认值，这里兜底，避免 NOT NULL 约束触发。
-            if (scheduleItemEntity.getCloseStatus() == null) {
-                scheduleItemEntity.setCloseStatus(CloseStatus.OPEN);
-            }
-            if (scheduleItemEntity.getParentId() == null) {
-                scheduleItemEntity.setParentId(0L);
-            }
+            // 盖审计字段并兜底 NOT NULL 默认值（MapStruct.toEntity 可能用 DTO 的 null 覆盖实体初始值）。
+            ScheduleItemSupport.stampCreate(scheduleItemEntity, userId);
 
             scheduleItemRepository.save(scheduleItemEntity);
         }
@@ -129,43 +127,6 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
 
 
-    public LocalDate getDueDate(ScheduleItemDTO scheduleItemDTO, LocalDate taskTime) {
-        LocalDate dueDate = null;
-
-        switch (scheduleItemDTO.getRepeatType()) {
-            case daily:
-                // 每日重复：到期日就是 taskTime 所在的日期
-                // 例如，taskTime 是 2024-03-15T10:30，则 dueDate 是 2024-03-15
-                dueDate = taskTime;
-                break;
-            case weekly:
-                // 每周重复：到期日是 taskTime 所在周的周日（一周的最后一天）
-                // 例如，taskTime 是 2026-01-09 (周五)，则 dueDate 是 2026-01-11 (周日)
-                dueDate = taskTime.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
-                break;
-            case yearly:
-                // 每年重复：到期日是 taskTime 所在年的最后一天，即12月31日
-                // 例如，taskTime 是 2026-01-09T20:18，则 dueDate 是 2026-12-31
-                dueDate = taskTime.with(TemporalAdjusters.lastDayOfYear());
-                break;
-            case monthly:
-                // 每月重复：到期日是 taskTime 所在月份的最后一天
-                // 例如，taskTime 是 2026-01-09T20:18，则 dueDate 是 2026-01-31
-                // (如果是2月，会自动处理 2024-02-29 或 2023-02-28)
-                dueDate = taskTime.with(TemporalAdjusters.lastDayOfMonth());
-                break;
-            default:
-                // 如果传入了未定义的重复类型，使用 DTO 中指定的 endTime 的日期部分作为兜底
-                dueDate = scheduleItemDTO.getRepeatEndDay();
-        }
-        boolean isRepeatEndBeforeDueDate = scheduleItemDTO.getRepeatEndDay().isBefore(dueDate);
-        if (isRepeatEndBeforeDueDate){
-            return scheduleItemDTO.getRepeatEndDay();
-        }
-        // 统一返回计算得出的到期日期
-        return dueDate;
-    }
-
     @Override
     public ScheduleItem saveForTaskUpdate(Long id, ScheduleItemUpdateScope updateScope) {
         Optional<ScheduleItem> existingItem = scheduleItemRepository.findById(id);
@@ -176,6 +137,25 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         } else {
             throw new RuntimeException("ScheduleItem not found with id: " + id);
         }
+    }
+
+    @Override
+    public ScheduleItem updateCloseStatus(Long id, CloseStatus closeStatus) {
+        Optional<ScheduleItem> existingItem = scheduleItemRepository.findById(id);
+        if (!existingItem.isPresent()) {
+            throw new RuntimeException("ScheduleItem not found with id: " + id);
+        }
+        ScheduleItem itemToUpdate = existingItem.get();
+        itemToUpdate.setCloseStatus(closeStatus == null ? CloseStatus.OPEN : closeStatus);
+        itemToUpdate.setUpdateTime(new Date());
+        return scheduleItemRepository.save(itemToUpdate);
+    }
+
+    @Override
+    public List<ScheduleItemDTO> getClosedItems(Long groupId, Long userId, ScheduleItemType itemType) {
+        List<ScheduleItem> items = scheduleItemRepository
+                .findByGroupIdAndUserIdAndItemTypeAndCloseStatus(groupId, userId, itemType.name(), CloseStatus.CLOSE);
+        return scheduleItemMapper.toDTOList(items);
     }
 
     @Override
@@ -255,21 +235,41 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
 
     private List<ScheduleItemDTO> getItemList(Long groupId , Long userId,ScheduleItemType itemType,LocalDate fromDate, LocalDate toDate){
-        List<ScheduleItem> allScheduleItems = null;
-        if (userId == null){
-            allScheduleItems = scheduleItemRepository.findOverlappingByGroupId(itemType.name(),groupId,fromDate,toDate);
-        }else{
-            if (groupId == null){
-                allScheduleItems = scheduleItemRepository.findOverlappingByUserId(itemType.name(),userId,fromDate,toDate);
-            }else{
-                allScheduleItems = scheduleItemRepository.findOverlappingByGroupIdAndUserId(itemType.name(),groupId, userId,fromDate,toDate);
-            }
+        List<ScheduleItem> allScheduleItems = new ArrayList<>(
+                fetchOverlapping(itemType.name(), groupId, userId, fromDate, toDate));
+
+        // 关联类型（如「日程表」顺带展示「收到的邀请」invRecv）由对应 Handler 声明，service 负责拉取。
+        for (ScheduleItemType companion : typeHandlerRegistry.get(itemType).companionTypes()) {
+            allScheduleItems.addAll(fetchCompanion(companion.name(), groupId, userId, fromDate, toDate));
         }
 
-        if (allScheduleItems != null){
-            log.info("from db:{}{}{}{}{},list:{}",groupId,userId,itemType,fromDate,toDate,JSONObject.toJSONString(allScheduleItems));
-        }
+        log.info("from db:{}{}{}{}{},list:{}",groupId,userId,itemType,fromDate,toDate,JSONObject.toJSONString(allScheduleItems));
         return  scheduleItemMapper.toDTOList(allScheduleItems);
+    }
+
+    /** 按 (groupId,userId) 组合拉取指定类型、与时间窗重叠的日程项。 */
+    private List<ScheduleItem> fetchOverlapping(String itemType, Long groupId, Long userId, LocalDate fromDate, LocalDate toDate) {
+        if (userId == null) {
+            return scheduleItemRepository.findOverlappingByGroupId(itemType, groupId, fromDate, toDate);
+        }
+        if (groupId == null) {
+            return scheduleItemRepository.findOverlappingByUserId(itemType, userId, fromDate, toDate);
+        }
+        return scheduleItemRepository.findOverlappingByGroupIdAndUserId(itemType, groupId, userId, fromDate, toDate);
+    }
+
+    /**
+     * 拉取关联类型项（如 invRecv）：这类记录属于用户个人、可能来自其它群组，
+     * 因此优先按 userId 拉取（忽略 groupId）；只有「整组所有成员」视图（userId 为空）才按 groupId。
+     */
+    private List<ScheduleItem> fetchCompanion(String itemType, Long groupId, Long userId, LocalDate fromDate, LocalDate toDate) {
+        if (userId != null) {
+            return scheduleItemRepository.findOverlappingByUserId(itemType, userId, fromDate, toDate);
+        }
+        if (groupId != null) {
+            return scheduleItemRepository.findOverlappingByGroupId(itemType, groupId, fromDate, toDate);
+        }
+        return Collections.emptyList();
     }
 
     @Override
@@ -282,6 +282,13 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     public List<ScheduleItemDTO> getItemListByParentIds(List<Long> parentIds) {
         List<ScheduleItem> allScheduleItems = scheduleItemRepository.findByParentIdIn(parentIds);
         return  scheduleItemMapper.toDTOList(allScheduleItems);
+    }
+
+    @Override
+    public List<ScheduleItemDTO> getPlanItems(Long groupId, ScheduleItemType itemType) {
+        List<ScheduleItem> items = scheduleItemRepository
+                .findByGroupIdAndItemTypeAndCloseStatusNot(groupId, itemType.name(), CloseStatus.CLOSE);
+        return scheduleItemMapper.toDTOList(items);
     }
 
     @Override
@@ -356,11 +363,12 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
      */
     private List<ScheduleItemDTO> filterAndFillSchedules(ScheduleItemType scheduleItemType,List<ScheduleItemDTO> schedules, String date) throws ParseException {
         LocalDate dateObj = DateUtil.parse(date);
-        
-        // 非重复日程项
+        ScheduleItemTypeHandler handler = typeHandlerRegistry.get(scheduleItemType);
+
+        // 非重复日程项：是否出现由类型 Handler 判定（日程/邀请看时间窗，任务/目标/事件看重复区间）
         List<ScheduleItemDTO> noneRepeatSchedules = schedules.stream()
                 .filter(schedule -> RepeatType.none.equals(schedule.getRepeatType()) &&
-                        (ScheduleItemType.schedule.equals(scheduleItemType)?isDateWithinRange(schedule.getStartTime(), schedule.getEndTime(), dateObj.atStartOfDay()):isDateWithinRepeatRange(schedule.getRepeatStartDay(), schedule.getRepeatEndDay(), dateObj)))
+                        handler.occursOnNonRepeating(schedule, dateObj))
                 .collect(Collectors.toList());
         
         // 每日重复日程项
@@ -432,10 +440,8 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         allSchedules.forEach(scheduleItemDTO -> {
             JSONObject showExtra = new JSONObject();
             showExtra.put("itemKey",getTaskKey(scheduleItemDTO,dateObj));
-            if(ScheduleItemType.task.equals(scheduleItemType)){
-                LocalDate dueDate = getDueDate(scheduleItemDTO,dateObj);
-                showExtra.put("dueDate",dueDate.toString());
-            }
+            // 类型特有的展示字段（如任务的 dueDate）交给对应 Handler 补充
+            handler.decorate(scheduleItemDTO, dateObj, showExtra);
             if (scheduleItemDTO.getUpdateScope() != null && scheduleItemDTO.getUpdateScope().getLastCompleteTime()!= null){
                 showExtra.put("lastCompleteKey",getTaskKey(scheduleItemDTO,scheduleItemDTO.getUpdateScope().getLastCompleteTime().toLocalDate()));
             }
@@ -446,31 +452,10 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
     
     /**
-     * 检查日期是否在开始和结束时间范围内
-     */
-    private boolean isDateWithinRange(LocalDateTime startTime, LocalDateTime endTime, LocalDateTime date) {
-        // 1. 处理空值情况
-        if (startTime == null || endTime == null || date == null) {
-            return false;
-        }
-        LocalDateTime startOfDay = DateUtil.getStartOfDay(date);
-        LocalDateTime endOfDay = DateUtil.getEndOfDay(date);
-        return startTime.isAfter(startOfDay) && startTime.isBefore(endOfDay) || endTime.isAfter(startOfDay) && endTime.isBefore(endOfDay);
-    }
-    
-    /**
-     * 检查日期是否在重复范围内
+     * 检查日期是否在重复范围内（重复展开各分支共用，委托给共享规则）。
      */
     private boolean isDateWithinRepeatRange(LocalDate repeatStartDay, LocalDate repeatEndDay, LocalDate date) {
-        if (repeatStartDay == null) {
-            return true;
-        }
-        
-        if (repeatEndDay == null) {
-            return !date.isBefore(repeatStartDay);
-        }
-        
-        return !date.isBefore(repeatStartDay) && (date.isBefore(repeatEndDay) || date.equals(repeatEndDay));
+        return ScheduleItemDateRules.withinRepeatRange(repeatStartDay, repeatEndDay, date);
     }
     private int getDayOfWeek(LocalDate date) {
         if (date == null) {

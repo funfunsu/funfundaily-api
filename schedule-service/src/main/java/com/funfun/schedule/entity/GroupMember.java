@@ -1,8 +1,9 @@
 package com.funfun.schedule.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.Where;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.Date;
 
 /**
@@ -43,6 +44,16 @@ public class GroupMember {
 
 
     private int score;
+
+    /**
+     * 开放接口（OpenAPI / MCP）访问令牌。绑定到具体某个成员（一个 group_member 行一个令牌），
+     * 令牌即同时确定 groupId（数据隔离边界）与归属 userId（管理维度）。
+     * 改 token / 开通 / 吊销 只需更新本列，无需改配置或重启。
+     * 标 @JsonIgnore 防止经由实体序列化意外泄露。
+     */
+    @JsonIgnore
+    @Column(name = "open_api_token", length = 128)
+    private String openApiToken;
 
     // 构造方法
     public GroupMember() {
@@ -130,6 +141,14 @@ public class GroupMember {
 
     public void setScore(int score) {
         this.score = score;
+    }
+
+    public String getOpenApiToken() {
+        return openApiToken;
+    }
+
+    public void setOpenApiToken(String openApiToken) {
+        this.openApiToken = openApiToken;
     }
 
     @Override

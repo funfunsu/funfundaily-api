@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
-import javax.servlet.*;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -28,6 +28,14 @@ public class LoggingFilter implements Filter {
 
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
+
+        // SSE / 流式端点（如进程内 MCP 的 /mcp/sse）不能用 ContentCachingResponseWrapper 包装：
+        // 它会缓冲响应体、直到请求结束才 copyBodyToResponse，导致 SSE 事件无法实时下发。
+        // 因此对 /mcp/** 直接放行（不缓存、不记录响应体），保证流式推送正常。
+        if (httpRequest.getRequestURI().startsWith("/mcp/")) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         // 使用 ContentCachingWrapper 包装请求和响应，以便缓存内容供后续读取
         ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(httpRequest);
