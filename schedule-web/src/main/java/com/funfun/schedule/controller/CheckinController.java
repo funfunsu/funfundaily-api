@@ -48,6 +48,25 @@ public class CheckinController {
         Long recordId = checkinService.performCheckin(checkinRecordDTO);
         return CommonResponse.success(recordId);
     }
+
+    /**
+     * 戒断事件按天反馈（达成/破戒）。extra.feedback = "persist" 坚持 / "relapse" 破戒。
+     * 与普通打卡分流：不计积分、不看 totalCount，按天 upsert（同一天可改主意）。
+     */
+    @PostMapping("/feedback")
+    @RequiredDataPermission
+    public CommonResponse<?> feedback(@RequestBody CheckinRequest requestDto) {
+        CheckinRecordDTO dto = new CheckinRecordDTO();
+        dto.setGroupId(Long.valueOf(requestDto.getGroupId()));
+        dto.setUserId(Long.valueOf(requestDto.getTargetUserId()));
+        dto.setTaskId(Long.valueOf(requestDto.getTaskId()));
+        dto.setOperatorId(UserContext.getUserId());
+        dto.setTaskTime(requestDto.getTaskTime());
+        dto.setExtra(requestDto.getExtra());
+        Long recordId = checkinService.performAbstainFeedback(dto);
+        return CommonResponse.success(recordId);
+    }
+
     @PostMapping("/list")
     @RequiredDataPermission(allowRole = {GroupRole.Admin,GroupRole.Member})
     public CommonResponse<?> getCheckInRecords(@RequestBody GetScheduleItemRequest request) {

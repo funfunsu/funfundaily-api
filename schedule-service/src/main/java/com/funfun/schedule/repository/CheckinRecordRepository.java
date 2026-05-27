@@ -58,4 +58,9 @@ public interface CheckinRecordRepository extends JpaRepository<CheckinRecord, Lo
      * 当前周期下该任务已完成几次（用于"打卡 N 次"业务，多次累计）。
      */
     int countByGroupIdAndUserIdAndTaskKey(Long groupId, Long userId, String taskKey);
+
+    /**
+     * 取该 group/user/taskKey 下最新一条记录（戒断反馈按天 upsert：同一天再次反馈覆盖原记录）。
+     */
+    Optional<CheckinRecord> findFirstByGroupIdAndUserIdAndTaskKeyOrderByCompleteTimeDesc(Long groupId, Long userId, String taskKey);
 }

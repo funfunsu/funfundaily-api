@@ -159,6 +159,13 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
 
     @Override
+    public List<ScheduleItemDTO> getActiveItems(Long groupId, Long userId, ScheduleItemType itemType) {
+        List<ScheduleItem> items = scheduleItemRepository
+                .findByGroupIdAndUserIdAndItemTypeAndCloseStatus(groupId, userId, itemType.name(), CloseStatus.OPEN);
+        return scheduleItemMapper.toDTOList(items);
+    }
+
+    @Override
     public ScheduleItem updateScheduleItem(Long id, ScheduleItem scheduleItem) {
         Optional<ScheduleItem> existingItem = scheduleItemRepository.findById(id);
         if (existingItem.isPresent()) {
