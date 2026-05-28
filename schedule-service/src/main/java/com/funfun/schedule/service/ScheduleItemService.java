@@ -55,6 +55,12 @@ public interface ScheduleItemService {
     List<ScheduleItemDTO> getClosedItems(Long groupId, Long userId, ScheduleItemType itemType);
 
     /**
+     * 查询某成员在某组下、指定类型、未停止关注（OPEN）的日程项扁平列表（不按天展开）。
+     * 用于戒断事件等「长期持续事件」的事件列表。
+     */
+    List<ScheduleItemDTO> getActiveItems(Long groupId, Long userId, ScheduleItemType itemType);
+
+    /**
      * 删除日程项
      * @param id 日程项ID
      */

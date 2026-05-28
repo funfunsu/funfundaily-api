@@ -112,6 +112,11 @@ public class ShareController {
                 JSONArray taskList = JSON.parseArray(shareRecord.getContent());
                 infoMap.put("data", taskList);
                 return CommonResponse.success(infoMap);
+            case "abstain_share":
+                // 戒断日历分享：content 是 { event:{...}, records:[...] }，返回 { creatorNickname, data:{...} }
+                JSONObject abstainContent = JSON.parseObject(shareRecord.getContent());
+                infoMap.put("data", abstainContent);
+                return CommonResponse.success(infoMap);
 
         }
         return  CommonResponse.success(record.get().getContent());

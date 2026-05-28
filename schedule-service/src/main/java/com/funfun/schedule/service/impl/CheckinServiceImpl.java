@@ -123,6 +123,45 @@ public class CheckinServiceImpl implements CheckinService {
 
     }
 
+    @Override
+    @Transactional
+    public Long performAbstainFeedback(CheckinRecordDTO requestDto) {
+        if (requestDto.getTaskTime() == null) {
+            requestDto.setTaskTime(DateUtil.getStartOfDay(LocalDateTime.now()));
+        }
+        Long userId = requestDto.getUserId();
+        Long taskId = requestDto.getTaskId();
+        Long groupId = requestDto.getGroupId();
+
+        ScheduleItemDTO scheduleItemDTO = scheduleItemService.getScheduleItemById(taskId);
+        if (scheduleItemDTO == null) {
+            CommonException.DATA_INVALID.throwsError("戒断事件不存在");
+        }
+
+        // 戒断反馈按天归属：taskKey = taskId:yyyy-MM-dd（绕开 getTaskKey 对 repeatType=none 的空周期键问题）
+        LocalDate day = requestDto.getTaskTime().toLocalDate();
+        String taskKey = taskId + ":" + day;
+
+        JSONObject extra = requestDto.getExtra() == null ? new JSONObject() : requestDto.getExtra();
+        extra.put("title", scheduleItemDTO.getItemTitle());
+
+        // 同一天再次反馈：覆盖原记录（允许达成↔破戒互改）
+        CheckinRecord record = checkinRecordRepository
+                .findFirstByGroupIdAndUserIdAndTaskKeyOrderByCompleteTimeDesc(groupId, userId, taskKey)
+                .orElseGet(CheckinRecord::new);
+        record.setTaskId(taskId);
+        record.setUserId(userId);
+        record.setGroupId(groupId);
+        record.setTaskKey(taskKey);
+        record.setTaskTime(DateUtil.getStartOfDay(requestDto.getTaskTime()));
+        record.setCompleteTime(LocalDateTime.now());
+        record.setExtra(JSON.toJSONString(extra));
+        record.setDeleted(false);
+        CheckinRecord saved = checkinRecordRepository.save(record);
+        logger.info("Abstain feedback saved id={}, taskKey={}, feedback={}", saved.getId(), taskKey, extra.get("feedback"));
+        return saved.getId();
+    }
+
     private static TransactionFlowDTO getFlowDTO(ScheduleItemDTO scheduleItemDTO, Integer earnedScore, CheckinRecord savedRecord) {
         String eventName = scheduleItemDTO.getItemTitle();
         TransactionFlowDTO flow = new TransactionFlowDTO();
