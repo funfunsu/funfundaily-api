@@ -22,6 +22,9 @@ public class LoggingFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(LoggingFilter.class);
 
+    /** 文本类 body 最大打印长度，超出部分截断（避免大 body 刷屏） */
+    private static final int MAX_BODY_LENGTH = 2000;
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -68,8 +71,7 @@ public class LoggingFilter implements Filter {
         }
         byte[] content = request.getContentAsByteArray();
         if (content.length > 0) {
-            String body = new String(content, StandardCharsets.UTF_8);
-            msg.append(",Request Body:").append(body);
+            msg.append(",Request Body:").append(formatBody(request.getContentType(), content));
         }
         return msg.toString();
     }
@@ -79,9 +81,43 @@ public class LoggingFilter implements Filter {
         // 打印 Response Body
         byte[] content = response.getContentAsByteArray();
         if (content.length > 0) {
-            String body = new String(content, StandardCharsets.UTF_8);
-            msg.append(",Response Body:").append(body);
+            msg.append(",Response Body:").append(formatBody(response.getContentType(), content));
         }
         return msg.toString();
+    }
+
+    /**
+     * 格式化 body 用于日志：
+     * 1. 图片/二进制类（image、multipart、audio、video、octet-stream、pdf 等）整体打印没有参考价值，
+     *    只记录 contentType 与字节数，不打印内容；
+     * 2. 文本类 body 超过 {@link #MAX_BODY_LENGTH} 时截断，附带原始字节数。
+     */
+    private String formatBody(String contentType, byte[] content) {
+        if (content == null || content.length == 0) {
+            return "";
+        }
+        if (isBinaryContent(contentType)) {
+            return "[binary body omitted, contentType=" + contentType + ", size=" + content.length + " bytes]";
+        }
+        String body = new String(content, StandardCharsets.UTF_8);
+        if (body.length() > MAX_BODY_LENGTH) {
+            return body.substring(0, MAX_BODY_LENGTH)
+                    + "...(truncated, total " + content.length + " bytes)";
+        }
+        return body;
+    }
+
+    /** 判断是否为不适合明文打印的二进制/媒体类型 */
+    private boolean isBinaryContent(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+        String ct = contentType.toLowerCase();
+        return ct.startsWith("image/")
+                || ct.startsWith("multipart/")
+                || ct.startsWith("audio/")
+                || ct.startsWith("video/")
+                || ct.contains("octet-stream")
+                || ct.startsWith("application/pdf");
     }
 }
