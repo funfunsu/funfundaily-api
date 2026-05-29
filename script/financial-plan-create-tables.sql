@@ -74,8 +74,8 @@ CREATE TABLE IF NOT EXISTS realization_batch (
   plan_id            BIGINT NOT NULL COMMENT '所属计划 id',
   asset_id           BIGINT NOT NULL COMMENT '所属标的 id',
   batch_name         VARCHAR(128)    NULL     COMMENT '批次名称（可选）',
-  batch_type         VARCHAR(16)     NOT NULL COMMENT 'EQUITY|DERIVATIVE',
-  direction          VARCHAR(16)     NULL     COMMENT 'CALL|PUT|SHORT_CALL|SHORT_PUT，仅 DERIVATIVE 有意义',
+  batch_type         VARCHAR(16)     NOT NULL COMMENT 'EQUITY（批次只挂正股；DERIVATIVE 已废弃，期权下沉为操作）',
+  direction          VARCHAR(16)     NULL     COMMENT '已废弃（期权方向下沉到 realization_operation.option_type）',
   quantity           DECIMAL(24, 8)  NOT NULL COMMENT '计划数量（仅作参考，不限定买卖上限）',
   plan_buy_price     DECIMAL(20, 8)  NOT NULL COMMENT '预期买入价（DERIVATIVE 卖空时可为负）',
   plan_sell_price   DECIMAL(20, 8)  NOT NULL COMMENT '预期卖出价（DERIVATIVE 卖空时可为负）',
@@ -109,19 +109,24 @@ CREATE TABLE IF NOT EXISTS realization_batch (
 -- 4) 兑现操作明细（一个批次下的多次买/卖）
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS realization_operation (
-  operation_id   BIGINT NOT NULL AUTO_INCREMENT COMMENT '操作主键',
-  batch_id       BIGINT NOT NULL COMMENT '所属批次 id',
-  operation_type VARCHAR(8)      NOT NULL COMMENT 'BUY|SELL',
-  trade_date     DATE            NOT NULL COMMENT '交易日期',
-  price          DECIMAL(20, 8)  NOT NULL COMMENT '实际成交价（DERIVATIVE 卖空时可为负）',
-  quantity       DECIMAL(24, 8)  NOT NULL COMMENT '成交数量',
-  fee            DECIMAL(24, 8)  NOT NULL DEFAULT 0 COMMENT '本次手续费',
-  note           VARCHAR(1024)   NULL     COMMENT '备注',
-  created_at     DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  operation_id    BIGINT NOT NULL AUTO_INCREMENT COMMENT '操作主键',
+  batch_id        BIGINT NOT NULL COMMENT '所属批次 id（=一只正股）',
+  instrument      VARCHAR(8)      NOT NULL DEFAULT 'STOCK' COMMENT 'STOCK|OPTION',
+  operation_type  VARCHAR(8)      NOT NULL COMMENT 'BUY|SELL',
+  option_type     VARCHAR(8)      NULL     COMMENT 'CALL|PUT，仅 OPTION 有效',
+  strike_price    DECIMAL(20, 2)  NULL     COMMENT '目标价格（行权价），仅 OPTION 有效',
+  expiration_date DATE            NULL     COMMENT '到期时间，仅 OPTION 有效',
+  trade_date      DATE            NOT NULL COMMENT '交易日期',
+  price           DECIMAL(20, 2)  NOT NULL COMMENT '实际成交价（OPTION 可为 0）',
+  quantity        DECIMAL(24, 8)  NOT NULL COMMENT '成交数量（OPTION 可为负）',
+  fee             DECIMAL(24, 2)  NOT NULL DEFAULT 0 COMMENT '本次手续费',
+  note            VARCHAR(1024)   NULL     COMMENT '备注',
+  created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
 
   PRIMARY KEY (operation_id),
-  KEY idx_realization_operation_batch_type (batch_id, operation_type)
+  KEY idx_realization_operation_batch_type (batch_id, operation_type),
+  KEY idx_realization_operation_batch_instrument (batch_id, instrument)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_0900_ai_ci
-  COMMENT = '兑现操作明细：一个批次下的多次买/卖';
+  COMMENT = '兑现操作明细：一个批次下的正股/期权多次买/卖';

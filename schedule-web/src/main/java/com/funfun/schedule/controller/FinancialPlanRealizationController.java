@@ -3,11 +3,13 @@ package com.funfun.schedule.controller;
 import com.funfun.schedule.controller.financialplan.FinancialPlanPermissionChecker;
 import com.funfun.schedule.controller.financialplan.WebTraceContext;
 import com.funfun.schedule.dto.CreateRealizationBatchCommand;
+import com.funfun.schedule.dto.ExerciseOptionCommand;
 import com.funfun.schedule.dto.RecordRealizationBuyCommand;
 import com.funfun.schedule.dto.RecordRealizationSellCommand;
 import com.funfun.schedule.dto.UpdateRealizationBatchCommand;
 import com.funfun.schedule.dto.financialplan.CreateRealizationBatchRequest;
 import com.funfun.schedule.dto.financialplan.CreateRealizationBatchResponse;
+import com.funfun.schedule.dto.financialplan.ExerciseOptionRequest;
 import com.funfun.schedule.dto.financialplan.RecordRealizationBuyRequest;
 import com.funfun.schedule.dto.financialplan.RecordRealizationBuyResponse;
 import com.funfun.schedule.dto.financialplan.RecordRealizationSellRequest;
@@ -108,10 +110,14 @@ public class FinancialPlanRealizationController {
         permissionChecker.loadPlanWithAccess(planId, traceId);
 
         RecordRealizationBuyCommand command = new RecordRealizationBuyCommand();
+        command.setInstrument(request.getInstrument());
         command.setTradeDate(request.getTradeDate());
         command.setActualBuyPrice(request.getActualBuyPrice());
         command.setQuantity(request.getQuantity());
         command.setFee(request.getFee());
+        command.setOptionType(request.getOptionType());
+        command.setStrikePrice(request.getStrikePrice());
+        command.setExpirationDate(request.getExpirationDate());
         command.setNote(request.getNote());
 
         RealizationBatch batch = realizationService.recordBuy(planId, batchId, command);
@@ -139,10 +145,14 @@ public class FinancialPlanRealizationController {
         permissionChecker.loadPlanWithAccess(planId, traceId);
 
         RecordRealizationSellCommand command = new RecordRealizationSellCommand();
+        command.setInstrument(request.getInstrument());
         command.setTradeDate(request.getTradeDate());
         command.setActualSellPrice(request.getActualSellPrice());
         command.setQuantity(request.getQuantity());
         command.setFee(request.getFee());
+        command.setOptionType(request.getOptionType());
+        command.setStrikePrice(request.getStrikePrice());
+        command.setExpirationDate(request.getExpirationDate());
         command.setNote(request.getNote());
 
         RealizationBatch batch = realizationService.recordSell(planId, batchId, command);
@@ -155,7 +165,32 @@ public class FinancialPlanRealizationController {
     }
 
     /**
-     * 编辑兑现批次：调整名称 / 数量 / 计划价 / 方向 / 到期日 / 备注（batchType 不可变更）。
+     * 行权 / 被行权：对批次内某个期权 key 执行，期权按价 0 平仓并自动生成一条正股记录。
+     */
+    @PostMapping("/{planId}/realizations/{batchId}/exercise")
+    public CommonResponse<RealizationBatch> exerciseOption(
+            @PathVariable Long planId,
+            @PathVariable Long batchId,
+            @RequestBody ExerciseOptionRequest request) {
+        String traceId = WebTraceContext.newTraceId();
+        if (request == null) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError(
+                    "traceId=" + traceId + ", reason=request body is null");
+        }
+        permissionChecker.loadPlanWithAccess(planId, traceId);
+
+        ExerciseOptionCommand command = new ExerciseOptionCommand();
+        command.setOptionType(request.getOptionType());
+        command.setStrikePrice(request.getStrikePrice());
+        command.setExpirationDate(request.getExpirationDate());
+        command.setAction(request.getAction());
+
+        RealizationBatch batch = realizationService.exerciseOption(planId, batchId, command);
+        return CommonResponse.success(batch);
+    }
+
+    /**
+     * 编辑兑现批次：调整名称 / 数量 / 计划价 / 备注（batchType 不可变更）。
      */
     @PutMapping("/{planId}/realizations/{batchId}")
     public CommonResponse<RealizationBatch> updateBatch(

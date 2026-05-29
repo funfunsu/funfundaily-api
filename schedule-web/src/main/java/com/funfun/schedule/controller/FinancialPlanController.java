@@ -149,6 +149,7 @@ public class FinancialPlanController {
         response.setAssets(detail.getAssets());
         response.setRealizationBatches(detail.getRealizationBatches());
         response.setSummary(financialPlanStatsService.calcPlanSummary(planId));
+        response.setBatchStats(financialPlanStatsService.calcBatchStats(planId));
         return CommonResponse.success(response);
     }
 

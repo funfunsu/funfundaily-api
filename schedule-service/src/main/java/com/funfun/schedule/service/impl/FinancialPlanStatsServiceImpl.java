@@ -2,18 +2,22 @@ package com.funfun.schedule.service.impl;
 
 import com.funfun.schedule.config.ExchangeRateConfig;
 import com.funfun.schedule.dto.AssetProfitSummaryDTO;
+import com.funfun.schedule.dto.BatchStatsDTO;
 import com.funfun.schedule.dto.ProfitSummaryDTO;
 import com.funfun.schedule.dto.ProgressSnapshotDTO;
 import com.funfun.schedule.entity.FinancialPlan;
 import com.funfun.schedule.entity.FinancialPlanAsset;
 import com.funfun.schedule.entity.RealizationBatch;
+import com.funfun.schedule.entity.RealizationOperation;
 import com.funfun.schedule.enums.PlanStatus;
 import com.funfun.schedule.enums.StageStatus;
 import com.funfun.schedule.exception.FinancialPlanError;
 import com.funfun.schedule.repository.FinancialPlanAssetRepository;
 import com.funfun.schedule.repository.FinancialPlanRepository;
 import com.funfun.schedule.repository.RealizationBatchRepository;
+import com.funfun.schedule.repository.RealizationOperationRepository;
 import com.funfun.schedule.service.FinancialPlanStatsService;
+import com.funfun.schedule.service.support.BatchStatsCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,6 +49,7 @@ public class FinancialPlanStatsServiceImpl implements FinancialPlanStatsService 
     private final FinancialPlanRepository planRepository;
     private final FinancialPlanAssetRepository assetRepository;
     private final RealizationBatchRepository batchRepository;
+    private final RealizationOperationRepository operationRepository;
     private final ExchangeRateConfig exchangeRateConfig;
 
     /**
@@ -137,6 +142,29 @@ public class FinancialPlanStatsServiceImpl implements FinancialPlanStatsService 
 
         } catch (Exception e) {
             log.error("[FinancialPlanStats] calcProgressSnapshot failed, planId={}", planId, e);
+            FinancialPlanError.FP_STAT_CALC_FAILED.throwsError(planId);
+            throw new IllegalStateException("unreachable");
+        }
+    }
+
+    /**
+     * 计算计划下每个批次的卡片汇总（正股 + 各期权 key），顺序与批次列表一致。
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<BatchStatsDTO> calcBatchStats(Long planId) {
+        try {
+            List<RealizationBatch> batches =
+                    batchRepository.findByPlanIdAndDeletedFalseOrderByCreatedAtDesc(planId);
+            List<BatchStatsDTO> result = new ArrayList<>();
+            for (RealizationBatch batch : batches) {
+                List<RealizationOperation> ops = operationRepository
+                        .findByBatchIdOrderByTradeDateAscCreatedAtAsc(batch.getBatchId());
+                result.add(BatchStatsCalculator.computeStats(batch, ops));
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("[FinancialPlanStats] calcBatchStats failed, planId={}", planId, e);
             FinancialPlanError.FP_STAT_CALC_FAILED.throwsError(planId);
             throw new IllegalStateException("unreachable");
         }
@@ -245,7 +273,9 @@ public class FinancialPlanStatsServiceImpl implements FinancialPlanStatsService 
 
         for (RealizationBatch batch : batches) {
             plannedProfit = plannedProfit.add(computeBatchTargetProfit(batch));
-            if (StageStatus.COMPLETED == batch.getStageStatus() && batch.getActualProfit() != null) {
+            // 新模型：actualProfit 为「累计已实现（正股+期权）」，随每次卖出/行权增量结算，
+            // 不再仅在批次 COMPLETED 时计入。
+            if (batch.getActualProfit() != null) {
                 actualProfit = actualProfit.add(batch.getActualProfit());
             }
             if (batch.getQuantity() != null) {

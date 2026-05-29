@@ -1,6 +1,7 @@
 package com.funfun.schedule.service;
 
 import com.funfun.schedule.dto.CreateRealizationBatchCommand;
+import com.funfun.schedule.dto.ExerciseOptionCommand;
 import com.funfun.schedule.dto.RecordRealizationBuyCommand;
 import com.funfun.schedule.dto.RecordRealizationSellCommand;
 import com.funfun.schedule.dto.UpdateRealizationBatchCommand;
@@ -55,4 +56,14 @@ public interface FinancialPlanRealizationService {
      * @return 更新后的批次实体
      */
     RealizationBatch updateBatch(Long planId, Long batchId, UpdateRealizationBatchCommand command);
+
+    /**
+     * 行权 / 被行权：对批次内某个期权 key 执行，期权按价 0 平仓并自动生成一条正股记录。
+     *
+     * @param planId  计划主键
+     * @param batchId 批次主键
+     * @param command 行权命令（optionType / strikePrice / expirationDate / action）
+     * @return 更新后的批次实体
+     */
+    RealizationBatch exerciseOption(Long planId, Long batchId, ExerciseOptionCommand command);
 }
