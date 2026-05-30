@@ -106,4 +106,18 @@ public interface UserService {
      * @return
      */
     Long getOrCreateUserIdByOpenId(String openId,Long invitorId);
+
+    /**
+     * 把当前登录（微信）用户的 openid 转移到目标占位用户上。
+     * 调用方必须当前已登录，且持有真实 openid；目标用户必须 openid 为空（即 bindType=None）。
+     * 调用后：占位用户拥有原微信用户的 openid（下次微信登录即解析为该占位账号）；
+     * 原微信用户 openid 置空，session 不再代表真人，前端应清 token 重新走 wx_login。
+     */
+    void bindOpenidToPlaceholder(Long placeholderUserId);
+
+    /**
+     * 仅当 targetUserId 的 openid 为空（未绑定微信）时，更新其昵称。
+     * 权限由调用方（Controller）通过 @RequiredDataPermission 在 groupId 维度校验。
+     */
+    UserInfoDTO updateUnboundUserNickname(Long targetUserId, String nickname);
 }
