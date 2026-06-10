@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import com.funfun.schedule.context.UserContext;
+import com.funfun.schedule.dto.BindMemberShareDTO;
 import com.funfun.schedule.dto.InviteMemberShareDTO;
 import com.funfun.schedule.dto.ScheduleItemDTO;
 import com.funfun.schedule.entity.GroupMember;
@@ -88,6 +89,7 @@ public class ShareController {
 
         Map<String, Object> infoMap = new HashMap<>();
         infoMap.put("creatorNickname",user.getNickname());
+        infoMap.put("sceneCode", shareRecord.getSceneCode());
 
         switch (shareRecord.getSceneCode()){
             case "schedule_share":
@@ -103,6 +105,10 @@ public class ShareController {
                 JSONObject shareContent = JSON.parseObject(shareRecord.getContent());
                 infoMap.put("data",shareContent);
                 return CommonResponse.success(infoMap);
+            case "member_bind":
+                JSONObject bindContent = JSON.parseObject(shareRecord.getContent());
+                infoMap.put("data", bindContent);
+                return CommonResponse.success(infoMap);
             case "invitation":
                 JSONObject invitationContent = JSON.parseObject(shareRecord.getContent());
                 infoMap.put("data", invitationContent);
@@ -111,6 +117,11 @@ public class ShareController {
                 // 任务分享：content 是选中任务的 JSON 数组，返回 { creatorNickname, data:[...] }
                 JSONArray taskList = JSON.parseArray(shareRecord.getContent());
                 infoMap.put("data", taskList);
+                return CommonResponse.success(infoMap);
+            case "abstain_share":
+                // 戒断日历分享：content 是 { event:{...}, records:[...] }，返回 { creatorNickname, data:{...} }
+                JSONObject abstainContent = JSON.parseObject(shareRecord.getContent());
+                infoMap.put("data", abstainContent);
                 return CommonResponse.success(infoMap);
 
         }
@@ -134,7 +145,14 @@ public class ShareController {
                 groupMember.setUserId(UserContext.getUserId());
                 groupMember.setRole(inviteMemberShareDTO.getRole());
                 groupMemberService.joinGroup(groupMember);
-
+                break;
+            case "member_bind":
+                BindMemberShareDTO bindDto = JSON.parseObject(shareRecord.getContent(), BindMemberShareDTO.class);
+                if (bindDto.getTargetUserId() == null || bindDto.getTargetUserId().isBlank()) {
+                    throw new RuntimeException("绑定分享缺少目标账号");
+                }
+                userService.bindOpenidToPlaceholder(Long.valueOf(bindDto.getTargetUserId()));
+                break;
         }
         return  CommonResponse.success(record.get().getContent());
     }

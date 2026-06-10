@@ -10,7 +10,7 @@ CREATE TABLE schedule_item
     repeat_keys      VARCHAR(128) NULL COMMENT '重复键值（如周一、每月1号等）',
     repeat_start_day DATE         NULL COMMENT '重复开始日期',
     repeat_end_day   DATE         NULL COMMENT '重复结束日期',
-    item_type        VARCHAR(8)   NOT NULL COMMENT '事项类型',
+    item_type        VARCHAR(32)  NOT NULL COMMENT '事项类型',
     start_time       DATETIME     NOT NULL COMMENT '开始时间',
     end_time         DATETIME     NOT NULL COMMENT '结束时间', -- 注意：原Java注释为'结束时间'，但字段名是 endTime
     user_id          BIGINT       NOT NULL COMMENT '用户ID',

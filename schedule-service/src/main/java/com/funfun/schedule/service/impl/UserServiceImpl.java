@@ -154,6 +154,54 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByIdIn(ids);
     }
 
+    @Override
+    @Transactional
+    public void bindOpenidToPlaceholder(Long placeholderUserId) {
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("当前未登录");
+        }
+        if (currentUserId.equals(placeholderUserId)) {
+            throw new RuntimeException("不能将自己绑定到自己");
+        }
+        User recipient = getUserById(currentUserId);
+        User placeholder = getUserById(placeholderUserId);
+        if (recipient.getOpenid() == null || recipient.getOpenid().isBlank()) {
+            throw new RuntimeException("当前账号未绑定微信，无法用于绑定");
+        }
+        if (placeholder.getOpenid() != null && !placeholder.getOpenid().isBlank()) {
+            throw new RuntimeException("目标成员已绑定微信，无法重复绑定");
+        }
+        String openid = recipient.getOpenid();
+        String unionid = recipient.getUnionid();
+        // 先清掉 recipient 的 openid，避免索引/唯一约束冲突；占位用户对外用 "" 表示未绑定。
+        recipient.setOpenid("");
+        recipient.setUnionid(null);
+        userRepository.saveAndFlush(recipient);
+        placeholder.setOpenid(openid);
+        if (unionid != null && !unionid.isBlank()) {
+            placeholder.setUnionid(unionid);
+        }
+        placeholder.setLastLoginTime(new Date());
+        userRepository.save(placeholder);
+        log.info("绑定 openid 完成：原 wx userId={}，占位 userId={}", currentUserId, placeholderUserId);
+    }
+
+    @Override
+    @Transactional
+    public UserInfoDTO updateUnboundUserNickname(Long targetUserId, String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            throw new RuntimeException("昵称不能为空");
+        }
+        User target = getUserById(targetUserId);
+        if (target.getOpenid() != null && !target.getOpenid().isBlank()) {
+            throw new RuntimeException("该成员已绑定微信，请其本人修改昵称");
+        }
+        target.setNickname(nickname.trim());
+        User saved = userRepository.save(target);
+        return userMapper.toSimpleDTO(saved);
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public Long getOrCreateUserIdByOpenId(String openId,Long invitorId) {
         // 1. 根据 openId 查询已有用户

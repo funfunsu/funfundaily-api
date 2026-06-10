@@ -1,6 +1,7 @@
 package com.funfun.schedule.service.impl;
 
 import com.funfun.schedule.dto.CreateRealizationBatchCommand;
+import com.funfun.schedule.dto.ExerciseOptionCommand;
 import com.funfun.schedule.dto.RecordRealizationBuyCommand;
 import com.funfun.schedule.dto.RecordRealizationSellCommand;
 import com.funfun.schedule.dto.UpdateRealizationBatchCommand;
@@ -8,9 +9,11 @@ import com.funfun.schedule.entity.FinancialPlan;
 import com.funfun.schedule.entity.FinancialPlanAsset;
 import com.funfun.schedule.entity.RealizationBatch;
 import com.funfun.schedule.entity.RealizationOperation;
-import com.funfun.schedule.enums.BatchDirection;
 import com.funfun.schedule.enums.BatchType;
+import com.funfun.schedule.enums.ExerciseAction;
+import com.funfun.schedule.enums.InstrumentType;
 import com.funfun.schedule.enums.OperationType;
+import com.funfun.schedule.enums.OptionType;
 import com.funfun.schedule.enums.PlanStatus;
 import com.funfun.schedule.enums.StageStatus;
 import com.funfun.schedule.exception.FinancialPlanError;
@@ -19,6 +22,7 @@ import com.funfun.schedule.repository.FinancialPlanRepository;
 import com.funfun.schedule.repository.RealizationBatchRepository;
 import com.funfun.schedule.repository.RealizationOperationRepository;
 import com.funfun.schedule.service.FinancialPlanRealizationService;
+import com.funfun.schedule.service.support.BatchStatsCalculator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -26,27 +30,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * 兑现批次领域服务实现（新模型）。
+ * 兑现批次领域服务实现（#771 新模型）。
  *
- * <p>主要变化：
+ * <p>核心变化：
  * <ul>
- *   <li>批次自带 batchType / direction / expirationDate / planBuyPrice / planSellPrice / quantity；
- *       asset 不再承载这些字段。</li>
- *   <li>买入 / 卖出 不再对批次做乐观锁校验——同一批次可多次买入、多次卖出，
- *       每次操作只追加 RealizationOperation 并刷新批次上的聚合字段。</li>
- *   <li>仍保留 batch.actualBuyAmount / actualSellAmount / actualProfit / stageStatus
- *       作为「持久化的聚合视图」，方便看板与列表展示。</li>
+ *   <li>批次只挂正股（EQUITY）；期权下沉为批次内的操作（instrument=OPTION）。</li>
+ *   <li>买入/卖出可记录正股或期权；期权额外携带 optionType/strikePrice/expirationDate，
+ *       价格可为 0、数量可为负。</li>
+ *   <li>每次写操作后，从全部操作明细重算批次聚合字段（WAC，正股+期权已实现），
+ *       聚合是「派生视图」，金额统一保留 2 位小数。</li>
+ *   <li>提供行权/被行权：期权按价 0 平仓 + 自动建一条正股记录。</li>
  * </ul>
  */
 @Service
 public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealizationService {
 
-    /** BigDecimal 除法保留位数。 */
-    private static final int MONEY_SCALE = 8;
+    private static final int MONEY_SCALE = 2;
+    private static final int DIV_SCALE = 8;
 
     private final FinancialPlanRepository financialPlanRepository;
     private final FinancialPlanAssetRepository financialPlanAssetRepository;
@@ -65,7 +70,7 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         this.realizationOperationRepository = realizationOperationRepository;
     }
 
-    /** 为指定标的创建一个兑现批次。 */
+    /** 为指定标的创建一个兑现批次（恒为正股 EQUITY）。 */
     @Override
     @Transactional
     public RealizationBatch createBatch(Long planId, CreateRealizationBatchCommand command) {
@@ -81,21 +86,22 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         RealizationBatch batch = new RealizationBatch();
         batch.setPlanId(plan.getPlanId());
         batch.setAssetId(asset.getAssetId());
-        batch.setBatchType(command.getBatchType());
-        batch.setDirection(command.getBatchType() == BatchType.DERIVATIVE ? command.getDirection() : null);
-        batch.setExpirationDate(command.getBatchType() == BatchType.DERIVATIVE ? command.getExpirationDate() : null);
+        batch.setBatchType(BatchType.EQUITY);
+        batch.setDirection(null);
+        batch.setExpirationDate(null);
         batch.setBatchName(resolveBatchName(asset, command));
         batch.setQuantity(command.getQuantity());
-        batch.setPlanBuyPrice(command.getPlanBuyPrice());
-        batch.setPlanSellPrice(command.getPlanSellPrice());
+        batch.setPlanBuyPrice(round(command.getPlanBuyPrice()));
+        batch.setPlanSellPrice(round(command.getPlanSellPrice()));
         batch.setStageStatus(StageStatus.PENDING_BUY);
         batch.setFeeTotal(BigDecimal.ZERO);
+        batch.setActualProfit(BigDecimal.ZERO);
         batch.setNote(command.getNote());
 
         return realizationBatchRepository.save(batch);
     }
 
-    /** 登记一次买入操作（可多次；不限定批次状态：COMPLETED 后再买也允许）。 */
+    /** 登记一次买入（正股或期权）。 */
     @Override
     @Transactional
     public RealizationBatch recordBuy(Long planId, Long batchId, RecordRealizationBuyCommand command) {
@@ -106,34 +112,22 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         RealizationBatch batch = loadBatchForWrite(batchId);
         ensureBatchBelongsToPlan(batch, planId);
 
-        validateOperationCommonFields(
-                command.getTradeDate(), command.getActualBuyPrice(), command.getQuantity(), command.getFee());
+        InstrumentType instrument = command.getInstrument() == null
+                ? InstrumentType.STOCK : command.getInstrument();
+        validateOperation(instrument, command.getTradeDate(), command.getActualBuyPrice(),
+                command.getQuantity(), command.getFee(),
+                command.getOptionType(), command.getStrikePrice(), command.getExpirationDate());
 
-        BigDecimal totalBuyQtyBefore = sumOpQuantity(batchId, OperationType.BUY);
-        BigDecimal newTotalBuyQty = totalBuyQtyBefore.add(command.getQuantity());
-        // batch.quantity 仅作为参考，不再用作买入数量的上限。
-
-        RealizationOperation op = buildOperation(
-                batchId, OperationType.BUY,
-                command.getTradeDate(), command.getActualBuyPrice(),
-                command.getQuantity(), command.getFee(), command.getNote());
+        RealizationOperation op = buildOperation(batchId, instrument, OperationType.BUY,
+                command.getTradeDate(), command.getActualBuyPrice(), command.getQuantity(), command.getFee(),
+                command.getOptionType(), command.getStrikePrice(), command.getExpirationDate(), command.getNote());
         realizationOperationRepository.save(op);
 
-        BigDecimal newBuyAmount = nullSafe(batch.getActualBuyAmount())
-                .add(command.getActualBuyPrice().multiply(command.getQuantity()));
-        batch.setActualBuyAmount(newBuyAmount);
-        batch.setActualBuyPrice(safeDivide(newBuyAmount, newTotalBuyQty));
-        batch.setBuyTradeDate(command.getTradeDate());
-        batch.setFeeTotal(nullSafe(batch.getFeeTotal()).add(nullSafe(command.getFee())));
-
-        BigDecimal totalSellQty = sumOpQuantity(batchId, OperationType.SELL);
-        batch.setStageStatus(computeStageStatus(newTotalBuyQty, totalSellQty));
-        // 已实现盈利只在卖出时变化；买入不动 actualProfit，避免再买入后回头把已实现金额拖成负数。
-
+        recomputeBatchAggregates(batch);
         return saveBatchSafely(batch);
     }
 
-    /** 登记一次卖出操作（可多次）。 */
+    /** 登记一次卖出（正股或期权）。 */
     @Override
     @Transactional
     public RealizationBatch recordSell(Long planId, Long batchId, RecordRealizationSellCommand command) {
@@ -144,50 +138,93 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         RealizationBatch batch = loadBatchForWrite(batchId);
         ensureBatchBelongsToPlan(batch, planId);
 
-        BigDecimal totalBuyQty = sumOpQuantity(batchId, OperationType.BUY);
-        if (totalBuyQty.compareTo(BigDecimal.ZERO) <= 0
-                || batch.getStageStatus() == StageStatus.PENDING_BUY) {
-            FinancialPlanError.FP_SELL_BEFORE_BUY.throwsError("batchId=" + batchId);
-        }
-        if (batch.getStageStatus() == StageStatus.COMPLETED) {
-            FinancialPlanError.FP_STAGE_CONFLICT.throwsError("sell not allowed at stage=COMPLETED");
-        }
+        InstrumentType instrument = command.getInstrument() == null
+                ? InstrumentType.STOCK : command.getInstrument();
+        validateOperation(instrument, command.getTradeDate(), command.getActualSellPrice(),
+                command.getQuantity(), command.getFee(),
+                command.getOptionType(), command.getStrikePrice(), command.getExpirationDate());
 
-        validateOperationCommonFields(
-                command.getTradeDate(), command.getActualSellPrice(), command.getQuantity(), command.getFee());
-
-        BigDecimal totalSellQtyBefore = sumOpQuantity(batchId, OperationType.SELL);
-        BigDecimal newTotalSellQty = totalSellQtyBefore.add(command.getQuantity());
-        // batch.quantity 不再约束卖出上限；仅保留「卖出累计不得超过买入累计」。
-        if (newTotalSellQty.compareTo(totalBuyQty) > 0) {
-            FinancialPlanError.FP_REALIZATION_QTY_EXCEEDED.throwsError(
-                    "sell exceeds buy: batchId=" + batchId
-                            + ", newSell=" + newTotalSellQty
-                            + ", buy=" + totalBuyQty);
-        }
-
-        RealizationOperation op = buildOperation(
-                batchId, OperationType.SELL,
-                command.getTradeDate(), command.getActualSellPrice(),
-                command.getQuantity(), command.getFee(), command.getNote());
+        RealizationOperation op = buildOperation(batchId, instrument, OperationType.SELL,
+                command.getTradeDate(), command.getActualSellPrice(), command.getQuantity(), command.getFee(),
+                command.getOptionType(), command.getStrikePrice(), command.getExpirationDate(), command.getNote());
         realizationOperationRepository.save(op);
 
-        BigDecimal newSellAmount = nullSafe(batch.getActualSellAmount())
-                .add(command.getActualSellPrice().multiply(command.getQuantity()));
-        batch.setActualSellAmount(newSellAmount);
-        batch.setActualSellPrice(safeDivide(newSellAmount, newTotalSellQty));
-        batch.setSellTradeDate(command.getTradeDate());
-        batch.setFeeTotal(nullSafe(batch.getFeeTotal()).add(nullSafe(command.getFee())));
-
-        batch.setStageStatus(computeStageStatus(totalBuyQty, newTotalSellQty));
-        recomputeAndStampProfit(batch);
-
+        recomputeBatchAggregates(batch);
         return saveBatchSafely(batch);
     }
 
     /**
-     * 编辑批次的计划字段；batchType 不可变更，数量不得小于已登记累计买入/卖出数量。
+     * 行权 / 被行权：对批次内某个期权 key 执行。
+     *
+     * <p>EXERCISE（净持仓>0）：期权按卖价 0 平掉全部多头 + 自动正股记录（CALL→买入，PUT→卖出）。
+     * ASSIGN（净持仓<0）：期权按买价 0 平掉全部空头 + 自动正股记录（CALL→卖出，PUT→买入）。
+     * 自动正股记录：价格 = strikePrice，数量 = |净持仓|（1:1 映射），tradeDate = 到期日。
      */
+    @Override
+    @Transactional
+    public RealizationBatch exerciseOption(Long planId, Long batchId, ExerciseOptionCommand command) {
+        if (command == null) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("command is null");
+        }
+        loadActivePlan(planId);
+        RealizationBatch batch = loadBatchForWrite(batchId);
+        ensureBatchBelongsToPlan(batch, planId);
+
+        if (command.getOptionType() == null || command.getStrikePrice() == null
+                || command.getExpirationDate() == null || command.getAction() == null) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError(
+                    "optionType/strikePrice/expirationDate/action are required");
+        }
+        if (command.getStrikePrice().compareTo(BigDecimal.ZERO) <= 0) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("strikePrice must be positive");
+        }
+
+        BigDecimal netQty = netOptionQuantity(batchId, command.getOptionType(),
+                command.getStrikePrice(), command.getExpirationDate());
+        BigDecimal absQty = netQty.abs();
+        if (absQty.signum() == 0) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("option key has no open position");
+        }
+
+        OptionType optionType = command.getOptionType();
+        LocalDate tradeDate = command.getExpirationDate();
+        OperationType stockOpType;
+        OperationType optionCloseType;
+        if (command.getAction() == ExerciseAction.EXERCISE) {
+            if (netQty.signum() <= 0) {
+                FinancialPlanError.FP_STAGE_CONFLICT.throwsError("exercise requires long position (netQty>0)");
+            }
+            // 平掉多头：卖出期权（价 0）
+            optionCloseType = OperationType.SELL;
+            // CALL→买入正股，PUT→卖出正股
+            stockOpType = optionType == OptionType.CALL ? OperationType.BUY : OperationType.SELL;
+        } else {
+            if (netQty.signum() >= 0) {
+                FinancialPlanError.FP_STAGE_CONFLICT.throwsError("assign requires short position (netQty<0)");
+            }
+            // 平掉空头：买入期权（价 0）
+            optionCloseType = OperationType.BUY;
+            // CALL→卖出正股，PUT→买入正股
+            stockOpType = optionType == OptionType.CALL ? OperationType.SELL : OperationType.BUY;
+        }
+
+        RealizationOperation closeOp = buildOperation(batchId, InstrumentType.OPTION, optionCloseType,
+                tradeDate, BigDecimal.ZERO, absQty, BigDecimal.ZERO,
+                optionType, round(command.getStrikePrice()), command.getExpirationDate(),
+                command.getAction() == ExerciseAction.EXERCISE ? "行权平仓" : "被行权平仓");
+        realizationOperationRepository.save(closeOp);
+
+        RealizationOperation stockOp = buildOperation(batchId, InstrumentType.STOCK, stockOpType,
+                tradeDate, round(command.getStrikePrice()), absQty, BigDecimal.ZERO,
+                null, null, null,
+                (command.getAction() == ExerciseAction.EXERCISE ? "行权" : "被行权") + "自动正股");
+        realizationOperationRepository.save(stockOp);
+
+        recomputeBatchAggregates(batch);
+        return saveBatchSafely(batch);
+    }
+
+    /** 编辑批次的计划字段（正股计划）；数量必须为正，价格不为 0。 */
     @Override
     @Transactional
     public RealizationBatch updateBatch(Long planId, Long batchId, UpdateRealizationBatchCommand command) {
@@ -199,25 +236,20 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         ensureBatchBelongsToPlan(batch, planId);
         ensureBatchVersionMatches(batch, command.getVersion());
 
-        // 价格：仅校验存在且 ≠ 0（DERIVATIVE 卖空场景允许负数）；EQUITY 仍要求 > 0。
         if (command.getPlanBuyPrice() != null) {
-            validateBatchPrice("planBuyPrice", command.getPlanBuyPrice(), batch.getBatchType());
-            batch.setPlanBuyPrice(command.getPlanBuyPrice());
+            validatePositive("planBuyPrice", command.getPlanBuyPrice());
+            batch.setPlanBuyPrice(round(command.getPlanBuyPrice()));
         }
         if (command.getPlanSellPrice() != null) {
-            validateBatchPrice("planSellPrice", command.getPlanSellPrice(), batch.getBatchType());
-            batch.setPlanSellPrice(command.getPlanSellPrice());
+            validatePositive("planSellPrice", command.getPlanSellPrice());
+            batch.setPlanSellPrice(round(command.getPlanSellPrice()));
         }
-
-        // 数量仅作参考：必须 > 0；不再校验 ≥ 已登记累计买/卖。
         if (command.getQuantity() != null) {
             if (command.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
                 FinancialPlanError.FP_REALIZATION_QTY_EXCEEDED.throwsError("quantity must be positive");
             }
             batch.setQuantity(command.getQuantity());
         }
-
-        // 名称 / 备注 / 衍生品方向 / 到期日：按字段是否提供来增量更新。
         if (command.getBatchName() != null) {
             String trimmed = command.getBatchName().trim();
             batch.setBatchName(trimmed.isEmpty() ? null : trimmed);
@@ -225,34 +257,142 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         if (command.getNote() != null) {
             batch.setNote(command.getNote());
         }
-        if (batch.getBatchType() == BatchType.DERIVATIVE) {
-            if (command.getDirection() != null) {
-                batch.setDirection(command.getDirection());
-            }
-            if (command.getExpirationDate() != null) {
-                batch.setExpirationDate(command.getExpirationDate());
-            }
-        }
 
         return saveBatchSafely(batch);
     }
 
+    // ===================== 重算聚合 =====================
+
     /**
-     * 批次价格校验：DERIVATIVE 允许负数（卖空时买入/卖出权利金可能为负）；其余必须严格大于 0。
+     * 从批次全部操作重算聚合字段（正股口径的金额 + 累计已实现 + 阶段状态 + 手续费）。
      */
-    private void validateBatchPrice(String fieldName, BigDecimal price, BatchType batchType) {
+    private void recomputeBatchAggregates(RealizationBatch batch) {
+        List<RealizationOperation> ops = realizationOperationRepository
+                .findByBatchIdOrderByTradeDateAscCreatedAtAsc(batch.getBatchId());
+
+        BigDecimal stockBuyQty = BigDecimal.ZERO;
+        BigDecimal stockBuyAmount = BigDecimal.ZERO;
+        BigDecimal stockSellQty = BigDecimal.ZERO;
+        BigDecimal stockSellAmount = BigDecimal.ZERO;
+        BigDecimal feeTotal = BigDecimal.ZERO;
+        LocalDate lastBuyDate = null;
+        LocalDate lastSellDate = null;
+
+        for (RealizationOperation op : ops) {
+            feeTotal = feeTotal.add(nz(op.getFee()));
+            if (op.getInstrument() == InstrumentType.OPTION) {
+                continue;
+            }
+            BigDecimal amount = nz(op.getPrice()).multiply(nz(op.getQuantity()));
+            if (op.getOperationType() == OperationType.BUY) {
+                stockBuyQty = stockBuyQty.add(nz(op.getQuantity()));
+                stockBuyAmount = stockBuyAmount.add(amount);
+                lastBuyDate = op.getTradeDate();
+            } else {
+                stockSellQty = stockSellQty.add(nz(op.getQuantity()));
+                stockSellAmount = stockSellAmount.add(amount);
+                lastSellDate = op.getTradeDate();
+            }
+        }
+
+        batch.setActualBuyAmount(round(stockBuyAmount));
+        batch.setActualSellAmount(round(stockSellAmount));
+        batch.setActualBuyPrice(stockBuyQty.signum() == 0 ? null : roundDiv(stockBuyAmount, stockBuyQty));
+        batch.setActualSellPrice(stockSellQty.signum() == 0 ? null : roundDiv(stockSellAmount, stockSellQty));
+        batch.setBuyTradeDate(lastBuyDate);
+        batch.setSellTradeDate(lastSellDate);
+        batch.setFeeTotal(round(feeTotal));
+        batch.setStageStatus(computeStageStatus(stockBuyQty, stockSellQty));
+        batch.setActualProfit(BatchStatsCalculator.computeStats(batch, ops).getTotalRealizedProfit());
+    }
+
+    /** 计算批次内指定期权 key 的净持仓（BUY +，SELL -）。 */
+    private BigDecimal netOptionQuantity(Long batchId, OptionType optionType,
+                                         BigDecimal strikePrice, LocalDate expirationDate) {
+        List<RealizationOperation> ops = realizationOperationRepository
+                .findByBatchIdOrderByTradeDateAscCreatedAtAsc(batchId);
+        BigDecimal normStrike = round(strikePrice);
+        BigDecimal net = BigDecimal.ZERO;
+        for (RealizationOperation op : ops) {
+            if (op.getInstrument() != InstrumentType.OPTION) {
+                continue;
+            }
+            if (op.getOptionType() != optionType) {
+                continue;
+            }
+            if (op.getStrikePrice() == null || op.getStrikePrice().compareTo(normStrike) != 0) {
+                continue;
+            }
+            if (!Objects.equals(op.getExpirationDate(), expirationDate)) {
+                continue;
+            }
+            BigDecimal q = nz(op.getQuantity());
+            net = op.getOperationType() == OperationType.SELL ? net.subtract(q) : net.add(q);
+        }
+        return net;
+    }
+
+    // ===================== 校验 =====================
+
+    /**
+     * 操作校验：
+     * <ul>
+     *   <li>STOCK：价格 &gt; 0，数量 &gt; 0。</li>
+     *   <li>OPTION：价格 ≥ 0（可为 0），数量 ≠ 0（可为负），optionType/strikePrice(&gt;0)/expirationDate 必填。</li>
+     * </ul>
+     */
+    private void validateOperation(InstrumentType instrument, LocalDate tradeDate, BigDecimal price,
+                                   BigDecimal quantity, BigDecimal fee,
+                                   OptionType optionType, BigDecimal strikePrice, LocalDate expirationDate) {
+        if (tradeDate == null) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("tradeDate is required");
+        }
         if (price == null) {
-            FinancialPlanError.FP_VALIDATION_FAILED.throwsError(fieldName + " is required");
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("price is required");
         }
-        if (price.compareTo(BigDecimal.ZERO) == 0) {
-            FinancialPlanError.FP_VALIDATION_FAILED.throwsError(fieldName + " must not be zero");
+        if (fee != null && fee.compareTo(BigDecimal.ZERO) < 0) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("fee must be non-negative");
         }
-        if (batchType != BatchType.DERIVATIVE && price.compareTo(BigDecimal.ZERO) < 0) {
-            FinancialPlanError.FP_VALIDATION_FAILED.throwsError(fieldName + " must be positive");
+        if (instrument == InstrumentType.OPTION) {
+            if (price.compareTo(BigDecimal.ZERO) < 0) {
+                FinancialPlanError.FP_VALIDATION_FAILED.throwsError("option price must be >= 0");
+            }
+            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) == 0) {
+                FinancialPlanError.FP_REALIZATION_QTY_EXCEEDED.throwsError("option quantity must be non-zero");
+            }
+            if (optionType == null) {
+                FinancialPlanError.FP_VALIDATION_FAILED.throwsError("optionType is required for OPTION");
+            }
+            if (strikePrice == null || strikePrice.compareTo(BigDecimal.ZERO) <= 0) {
+                FinancialPlanError.FP_VALIDATION_FAILED.throwsError("strikePrice must be positive for OPTION");
+            }
+            if (expirationDate == null) {
+                FinancialPlanError.FP_VALIDATION_FAILED.throwsError("expirationDate is required for OPTION");
+            }
+        } else {
+            if (price.compareTo(BigDecimal.ZERO) <= 0) {
+                FinancialPlanError.FP_VALIDATION_FAILED.throwsError("stock price must be positive");
+            }
+            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                FinancialPlanError.FP_REALIZATION_QTY_EXCEEDED.throwsError("stock quantity must be positive");
+            }
         }
     }
 
-    /** 客户端 version 与数据库 version 不一致时抛 FP_VERSION_CONFLICT。 */
+    private void validatePositive(String field, BigDecimal value) {
+        if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) {
+            FinancialPlanError.FP_VALIDATION_FAILED.throwsError(field + " must be positive");
+        }
+    }
+
+    private void validateBatchCommand(CreateRealizationBatchCommand command) {
+        if (command.getQuantity() == null || command.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            FinancialPlanError.FP_REALIZATION_QTY_EXCEEDED.throwsError("quantity must be positive");
+        }
+        validatePositive("planBuyPrice", command.getPlanBuyPrice());
+        validatePositive("planSellPrice", command.getPlanSellPrice());
+    }
+
     private void ensureBatchVersionMatches(RealizationBatch batch, Integer expectedVersion) {
         if (expectedVersion == null) {
             FinancialPlanError.FP_VERSION_CONFLICT.throwsError("missing version");
@@ -319,132 +459,14 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         }
     }
 
-    /** 校验 createBatch 入参；EQUITY 不使用 direction / expirationDate，DERIVATIVE 两者必填。 */
-    private void validateBatchCommand(CreateRealizationBatchCommand command) {
-        if (command.getBatchType() == null) {
-            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("batchType is required");
-        }
-        if (command.getQuantity() == null || command.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-            FinancialPlanError.FP_REALIZATION_QTY_EXCEEDED.throwsError("quantity must be positive");
-        }
-        // DERIVATIVE 批次允许负数价格（卖空场景）；EQUITY 仍要求 > 0。
-        validateBatchPrice("planBuyPrice", command.getPlanBuyPrice(), command.getBatchType());
-        validateBatchPrice("planSellPrice", command.getPlanSellPrice(), command.getBatchType());
-        if (command.getBatchType() == BatchType.DERIVATIVE) {
-            if (command.getDirection() == null) {
-                FinancialPlanError.FP_VALIDATION_FAILED.throwsError("direction is required for DERIVATIVE batch");
-            }
-            if (command.getExpirationDate() == null) {
-                FinancialPlanError.FP_VALIDATION_FAILED.throwsError("expirationDate is required for DERIVATIVE batch");
-            }
-        }
-    }
-
-    /** 默认批次名：未填则按 「{股票名}-{批次类型/方向}」 拼一个，便于列表辨识。 */
     private String resolveBatchName(FinancialPlanAsset asset, CreateRealizationBatchCommand command) {
         if (command.getBatchName() != null && !command.getBatchName().trim().isEmpty()) {
             return command.getBatchName().trim();
         }
-        String suffix = command.getBatchType() == BatchType.DERIVATIVE
-                ? "-" + (command.getDirection() != null ? command.getDirection().name() : "DERIVATIVE")
-                : "-正股";
-        return (asset.getStockName() == null ? "批次" : asset.getStockName()) + suffix;
+        return (asset.getStockName() == null ? "批次" : asset.getStockName()) + "-正股";
     }
 
-    private void validateOperationCommonFields(java.time.LocalDate tradeDate,
-                                               BigDecimal price,
-                                               BigDecimal quantity,
-                                               BigDecimal fee) {
-        if (tradeDate == null) {
-            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("tradeDate is required");
-        }
-        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
-            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("price must be positive");
-        }
-        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
-            FinancialPlanError.FP_REALIZATION_QTY_EXCEEDED.throwsError(
-                    "operation quantity must be positive");
-        }
-        if (fee != null && fee.compareTo(BigDecimal.ZERO) < 0) {
-            FinancialPlanError.FP_VALIDATION_FAILED.throwsError("fee must be non-negative");
-        }
-    }
-
-    private BigDecimal sumOpQuantity(Long batchId, OperationType opType) {
-        List<RealizationOperation> ops = realizationOperationRepository
-                .findByBatchIdAndOperationTypeOrderByTradeDateAscCreatedAtAsc(batchId, opType);
-        BigDecimal sum = BigDecimal.ZERO;
-        for (RealizationOperation o : ops) {
-            sum = sum.add(nullSafe(o.getQuantity()));
-        }
-        return sum;
-    }
-
-    /**
-     * 用加权平均成本（WAC）法按操作时间顺序重算累计已实现盈利，并写回 batch.actualProfit。
-     *
-     * <p>核心思路：
-     * <ul>
-     *   <li>买入：累加到「持仓数量 / 持仓成本」（buy fee 视为沉没成本，不进 realized）。</li>
-     *   <li>卖出：按「当前持仓平均成本」结算这一笔的盈亏 = (sellPrice − avgCost) × sellQty − sellFee；
-     *       同时按比例减少持仓数量与成本。</li>
-     * </ul>
-     * 这样后续的「再买入」不会回头改动已经实现过的盈亏。
-     */
-    private void recomputeAndStampProfit(RealizationBatch batch) {
-        List<RealizationOperation> ops = realizationOperationRepository
-                .findByBatchIdOrderByTradeDateAscCreatedAtAsc(batch.getBatchId());
-
-        BigDecimal openQty = BigDecimal.ZERO;
-        BigDecimal openCost = BigDecimal.ZERO;
-        BigDecimal realized = BigDecimal.ZERO;
-
-        for (RealizationOperation op : ops) {
-            BigDecimal opQty = nullSafe(op.getQuantity());
-            BigDecimal opPrice = nullSafe(op.getPrice());
-            BigDecimal opFee = nullSafe(op.getFee());
-
-            if (op.getOperationType() == OperationType.BUY) {
-                openCost = openCost.add(opPrice.multiply(opQty));
-                openQty = openQty.add(opQty);
-                // 买入手续费不进 realized，留作隐性成本。
-            } else {
-                BigDecimal avgCost = openQty.signum() == 0
-                        ? BigDecimal.ZERO
-                        : openCost.divide(openQty, MONEY_SCALE, RoundingMode.HALF_UP);
-                BigDecimal thisSellProfit = opPrice.subtract(avgCost)
-                        .multiply(opQty)
-                        .subtract(opFee);
-                realized = realized.add(thisSellProfit);
-
-                BigDecimal consumedCost = avgCost.multiply(opQty);
-                openCost = openCost.subtract(consumedCost);
-                openQty = openQty.subtract(opQty);
-                if (openQty.signum() < 0) {
-                    openQty = BigDecimal.ZERO;
-                }
-                if (openCost.signum() < 0) {
-                    openCost = BigDecimal.ZERO;
-                }
-            }
-        }
-
-        batch.setActualProfit(realized);
-    }
-
-    /**
-     * 根据累计买入/卖出数量重算批次阶段状态。
-     *
-     * <p>新规则：batch.quantity 仅作参考，不再参与判定。
-     * <ul>
-     *   <li>未买入：PENDING_BUY</li>
-     *   <li>有买无卖：PARTIAL_BOUGHT</li>
-     *   <li>有买有卖且卖 ≥ 买：COMPLETED</li>
-     *   <li>有买有卖但卖 &lt; 买：PENDING_SELL</li>
-     * </ul>
-     */
-    private StageStatus computeStageStatus(BigDecimal totalBuyQty,
-                                           BigDecimal totalSellQty) {
+    private StageStatus computeStageStatus(BigDecimal totalBuyQty, BigDecimal totalSellQty) {
         if (totalBuyQty.compareTo(BigDecimal.ZERO) <= 0) {
             return StageStatus.PENDING_BUY;
         }
@@ -457,25 +479,25 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         return StageStatus.PENDING_SELL;
     }
 
-    private RealizationOperation buildOperation(Long batchId,
-                                                OperationType opType,
-                                                java.time.LocalDate tradeDate,
-                                                BigDecimal price,
-                                                BigDecimal quantity,
-                                                BigDecimal fee,
-                                                String note) {
+    private RealizationOperation buildOperation(Long batchId, InstrumentType instrument, OperationType opType,
+                                                LocalDate tradeDate, BigDecimal price, BigDecimal quantity,
+                                                BigDecimal fee, OptionType optionType, BigDecimal strikePrice,
+                                                LocalDate expirationDate, String note) {
         RealizationOperation op = new RealizationOperation();
         op.setBatchId(batchId);
+        op.setInstrument(instrument == null ? InstrumentType.STOCK : instrument);
         op.setOperationType(opType);
         op.setTradeDate(tradeDate);
-        op.setPrice(price);
+        op.setPrice(round(price));
         op.setQuantity(quantity);
-        op.setFee(nullSafe(fee));
+        op.setFee(round(nz(fee)));
+        op.setOptionType(instrument == InstrumentType.OPTION ? optionType : null);
+        op.setStrikePrice(instrument == InstrumentType.OPTION ? round(strikePrice) : null);
+        op.setExpirationDate(instrument == InstrumentType.OPTION ? expirationDate : null);
         op.setNote(note);
         return op;
     }
 
-    /** 兜底乐观锁冲突；正常路径不会触发（buy/sell 不要求 version）。 */
     private RealizationBatch saveBatchSafely(RealizationBatch batch) {
         try {
             return realizationBatchRepository.save(batch);
@@ -485,20 +507,19 @@ public class FinancialPlanRealizationServiceImpl implements FinancialPlanRealiza
         }
     }
 
-    private BigDecimal safeDivide(BigDecimal numerator, BigDecimal denominator) {
+    private BigDecimal round(BigDecimal v) {
+        return v == null ? null : v.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal roundDiv(BigDecimal numerator, BigDecimal denominator) {
         if (denominator == null || denominator.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
-        return numerator.divide(denominator, MONEY_SCALE, RoundingMode.HALF_UP);
+        return numerator.divide(denominator, DIV_SCALE, RoundingMode.HALF_UP)
+                .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal nullSafe(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
-    }
-
-    /** 留作扩展：将来若按方向计算盈亏（短仓符号反向）可在此切入。 */
-    @SuppressWarnings("unused")
-    private BigDecimal applyDirectionSign(BatchDirection direction, BigDecimal value) {
-        return value;
+    private BigDecimal nz(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
     }
 }

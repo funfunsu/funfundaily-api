@@ -1,8 +1,10 @@
 package com.funfun.schedule.controller;
 
 import com.alibaba.fastjson2.JSONObject;
+import com.funfun.schedule.anno.RequiredDataPermission;
 import com.funfun.schedule.config.WeChatConfig;
 import com.funfun.schedule.context.UserContext;
+import com.funfun.schedule.dto.UpdateMemberNicknameRequest;
 import com.funfun.schedule.dto.UpdateUserProfileRequest;
 import com.funfun.schedule.dto.UserInfoDTO;
 import com.funfun.schedule.entity.User;
@@ -55,6 +57,24 @@ public class UserController {
             @Valid @RequestBody UserInfoDTO userInfoDTO) {
         userInfoDTO.setId(UserContext.getUserId());
         return CommonResponse.success(userService.updateUserBaseInfo(userInfoDTO));
+    }
+
+    /**
+     * 群主/管理员修改群内未绑定微信成员的昵称。
+     * 权限：@RequiredDataPermission 校验调用方在 groupId 下的角色（默认 Admin；Creator 自动通过）。
+     * 业务校验：目标用户必须 openid 为空（即 bindType=None），否则拒绝。
+     */
+    @PostMapping("/update-member-nickname")
+    @RequiredDataPermission
+    public CommonResponse<UserInfoDTO> updateMemberNickname(
+            @Valid @RequestBody UpdateMemberNicknameRequest request) {
+        if (request.getTargetUserId() == null || request.getTargetUserId().isBlank()) {
+            throw new IllegalArgumentException("targetUserId 不能为空");
+        }
+        UserInfoDTO dto = userService.updateUnboundUserNickname(
+                Long.valueOf(request.getTargetUserId()),
+                request.getNickname());
+        return CommonResponse.success(dto);
     }
 
     /**

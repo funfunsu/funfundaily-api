@@ -49,10 +49,17 @@ public class CheckinServiceImpl implements CheckinService {
     private static final String scoreKey = "score";
     private static final String taskTypeKey = "taskType";
     private static final String totalCntKey = "totalCount";
+    // 积分模式：each=单次打卡即得分；full（默认/缺省）=全部完成才得分
+    private static final String scoreModeKey = "scoreMode";
+    private static final String SCORE_MODE_EACH = "each";
+    // 每日打卡上限：>=1 时校验当天已打卡次数；缺省/<=0 表示不限制（兼容历史数据）
+    private static final String dailyLimitKey = "dailyLimit";
+    // 周期全部完成额外奖励积分：>0 时在周期达成那一次额外发放
+    private static final String bonusScoreKey = "bonusScore";
 
 
     private Integer getScore(JSONObject extraMap){
-        if (extraMap == null){
+        if (extraMap == null || extraMap.getInteger(scoreKey) == null){
             return 0;
         }
         return extraMap.getInteger(scoreKey);
@@ -71,10 +78,24 @@ public class CheckinServiceImpl implements CheckinService {
         Long operatorId = requestDto.getOperatorId(); // 操作人，通常是用户自己
 
         ScheduleItemDTO scheduleItemDTO = scheduleItemService.getScheduleItemById(taskId);
-        String taskType = scheduleItemDTO.getExtra() == null? null :scheduleItemDTO.getExtra().getString(taskTypeKey);
+        JSONObject itemExtra = scheduleItemDTO.getExtra();
         String taskKey = scheduleItemService.getTaskKey(scheduleItemDTO,requestDto.getTaskTime().toLocalDate());
         int existCount = checkinRecordRepository.countByGroupIdAndUserIdAndTaskKey(groupId,userId, taskKey);
-        Integer earnedScore = getScore(scheduleItemDTO.getExtra()); // 示例固定积分
+        Integer earnedScore = getScore(itemExtra); // 任务配置的单次积分
+
+        // --- 1. 每日打卡上限校验 ---
+        // dailyLimit>=1：限制同一自然日内该任务的打卡次数；缺省/<=0 视为不限制（兼容历史任务）
+        Integer dailyLimit = itemExtra == null ? null : itemExtra.getInteger(dailyLimitKey);
+        if (dailyLimit != null && dailyLimit >= 1) {
+            LocalDateTime dayStart = DateUtil.getStartOfDay(requestDto.getTaskTime());
+            LocalDateTime dayEnd = dayStart.plusDays(1);
+            int todayCount = checkinRecordRepository
+                    .findByGroupIdAndUserIdAndTaskTimeBetween(groupId, userId, taskId, dayStart, dayEnd)
+                    .size();
+            if (todayCount >= dailyLimit) {
+                CommonException.NOT_ALLOWED.throwsError("今日打卡次数已达上限（" + dailyLimit + " 次），明天再来吧");
+            }
+        }
 
 
         // --- 2. 创建打卡记录 ---
@@ -85,17 +106,17 @@ public class CheckinServiceImpl implements CheckinService {
         JSONObject recordExtra = requestDto.getExtra();
         if(recordExtra == null){
             recordExtra =  new JSONObject();
-            recordExtra.put("count",existCount+1);
         }
+        int checkinSeq = existCount + 1; // 本次为当前周期内第几次打卡
+        recordExtra.put("count", checkinSeq);
         recordExtra.put("title",scheduleItemDTO.getItemTitle());
 
-        boolean completeFlag;
-        Integer totalCount = scheduleItemDTO.getExtra().getInteger(totalCntKey);
+        Integer totalCount = itemExtra == null ? null : itemExtra.getInteger(totalCntKey);
         recordExtra.put("totalCount",totalCount);
-        //只有== 的时候更新，后面多打了不更新
-        completeFlag = totalCount == existCount + 1;
+        // 本次打卡是否使整个周期达成（只有刚好达到 totalCount 的那一次为 true，后面多打不再触发）
+        boolean completeFlag = totalCount != null && totalCount == existCount + 1;
 
-        // --- 更新任务信息
+        // --- 更新任务信息：周期达成时记录最近完成时间 ---
         if (completeFlag){
             ScheduleItemUpdateScope scheduleItemUpdateScope = scheduleItemDTO.getUpdateScope();
             if (scheduleItemUpdateScope == null){
@@ -103,33 +124,96 @@ public class CheckinServiceImpl implements CheckinService {
             }
             scheduleItemUpdateScope.setLastCompleteTime(completeTime);
             scheduleItemService.saveForTaskUpdate(scheduleItemDTO.getId(),scheduleItemUpdateScope);
-        }else{
+        }
+
+        // --- 积分模式：each=每次打卡都得分；full（默认）=仅周期全部完成才得分 ---
+        String scoreMode = itemExtra == null ? null : itemExtra.getString(scoreModeKey);
+        boolean awardEachCheckin = SCORE_MODE_EACH.equals(scoreMode);
+        if (!awardEachCheckin && !completeFlag){
             earnedScore = 0;
         }
+
+        // --- 周期全部完成额外奖励：仅在达成那一次发放（与单次/完成积分叠加）---
+        int bonusScore = 0;
+        if (completeFlag && itemExtra != null){
+            Integer bonus = itemExtra.getInteger(bonusScoreKey);
+            if (bonus != null && bonus > 0){
+                bonusScore = bonus;
+            }
+        }
+
         recordExtra.put("score",earnedScore);
+        if (bonusScore > 0){
+            recordExtra.put("bonusScore", bonusScore);
+        }
         checkinRecord.setTaskTime(requestDto.getTaskTime());
         checkinRecord.setExtra(JSON.toJSONString(recordExtra));
         // 如果需要记录额外信息，可以设置 extra 字段
         CheckinRecord savedRecord = checkinRecordRepository.save(checkinRecord);
         logger.info("Checkin record created with ID: {}", savedRecord.getId());
 
-        // --- 3. 计算积分 (示例) ---
+        // --- 积分流水：单次/完成积分 ---
+        String eventName = scheduleItemDTO.getItemTitle();
         if (earnedScore > 0){
-            TransactionFlowDTO flow = getFlowDTO(scheduleItemDTO, earnedScore, savedRecord);
-            transactionFlowService.saveTransactionFlow(flow,groupId,userId,operatorId);
+            // 每次打卡得分时备注「第N次打卡」，便于在流水中区分同一周期的多次打卡
+            String desc = "完成打卡：" + eventName + (awardEachCheckin ? " 第" + checkinSeq + "次打卡" : "");
+            transactionFlowService.saveTransactionFlow(getFlowDTO(earnedScore, desc, savedRecord), groupId, userId, operatorId);
+        }
+        // --- 积分流水：周期全部完成额外奖励 ---
+        if (bonusScore > 0){
+            String bonusDesc = eventName + " 周期内任务全部完成额外奖励";
+            transactionFlowService.saveTransactionFlow(getFlowDTO(bonusScore, bonusDesc, savedRecord), groupId, userId, operatorId);
         }
         return savedRecord.getId();
 
 
     }
 
-    private static TransactionFlowDTO getFlowDTO(ScheduleItemDTO scheduleItemDTO, Integer earnedScore, CheckinRecord savedRecord) {
-        String eventName = scheduleItemDTO.getItemTitle();
+    @Override
+    @Transactional
+    public Long performAbstainFeedback(CheckinRecordDTO requestDto) {
+        if (requestDto.getTaskTime() == null) {
+            requestDto.setTaskTime(DateUtil.getStartOfDay(LocalDateTime.now()));
+        }
+        Long userId = requestDto.getUserId();
+        Long taskId = requestDto.getTaskId();
+        Long groupId = requestDto.getGroupId();
+
+        ScheduleItemDTO scheduleItemDTO = scheduleItemService.getScheduleItemById(taskId);
+        if (scheduleItemDTO == null) {
+            CommonException.DATA_INVALID.throwsError("戒断事件不存在");
+        }
+
+        // 戒断反馈按天归属：taskKey = taskId:yyyy-MM-dd（绕开 getTaskKey 对 repeatType=none 的空周期键问题）
+        LocalDate day = requestDto.getTaskTime().toLocalDate();
+        String taskKey = taskId + ":" + day;
+
+        JSONObject extra = requestDto.getExtra() == null ? new JSONObject() : requestDto.getExtra();
+        extra.put("title", scheduleItemDTO.getItemTitle());
+
+        // 同一天再次反馈：覆盖原记录（允许达成↔破戒互改）
+        CheckinRecord record = checkinRecordRepository
+                .findFirstByGroupIdAndUserIdAndTaskKeyOrderByCompleteTimeDesc(groupId, userId, taskKey)
+                .orElseGet(CheckinRecord::new);
+        record.setTaskId(taskId);
+        record.setUserId(userId);
+        record.setGroupId(groupId);
+        record.setTaskKey(taskKey);
+        record.setTaskTime(DateUtil.getStartOfDay(requestDto.getTaskTime()));
+        record.setCompleteTime(LocalDateTime.now());
+        record.setExtra(JSON.toJSONString(extra));
+        record.setDeleted(false);
+        CheckinRecord saved = checkinRecordRepository.save(record);
+        logger.info("Abstain feedback saved id={}, taskKey={}, feedback={}", saved.getId(), taskKey, extra.get("feedback"));
+        return saved.getId();
+    }
+
+    private static TransactionFlowDTO getFlowDTO(Integer earnedScore, String description, CheckinRecord savedRecord) {
         TransactionFlowDTO flow = new TransactionFlowDTO();
         flow.setFlowType(FlowType.POINTS);
         flow.setAmount(earnedScore);
         flow.setTransactionType(TransactionType.INCOME);
-        flow.setDescription("完成打卡："+eventName);
+        flow.setDescription(description);
         JSONObject extra = new JSONObject();
         extra.put("checkinRecordId", savedRecord.getId());
         flow.setExtra(extra);

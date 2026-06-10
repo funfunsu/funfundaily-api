@@ -158,6 +158,17 @@ public class ScheduleItemController {
     }
 
     /**
+     * 查询未停止关注（OPEN）的日程项扁平列表（不按天展开），用于戒断事件等「长期持续事件」的事件列表。
+     */
+    @PostMapping("/active/list")
+    @RequiredDataPermission(allowRole = {GroupRole.Admin, GroupRole.Member})
+    public CommonResponse<?> activeList(@RequestBody GetScheduleItemRequest request) {
+        Long groupIdLong = request.getGroupId() == null ? null : Long.valueOf(request.getGroupId());
+        Long userIdLong = request.getTargetUserId() == null ? UserContext.getUserId() : Long.valueOf(request.getTargetUserId());
+        return CommonResponse.success(scheduleItemService.getActiveItems(groupIdLong, userIdLong, request.getScheduleItemType()));
+    }
+
+    /**
      * 删除日程项
      * @param id 日程项ID
      * @return HTTP状态码

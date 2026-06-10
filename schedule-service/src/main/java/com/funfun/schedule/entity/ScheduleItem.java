@@ -41,8 +41,8 @@ public class ScheduleItem {
     @Column(name = "repeat_end_day")
     private LocalDate repeatEndDay; // 重复结束日期
 
-    @Column(name = "item_type", length = 8, nullable = false)
-    private String itemType; // 项目类型，非空
+    @Column(name = "item_type", length = 32, nullable = false)
+    private String itemType; // 项目类型，非空（如 monthlyPlan=11 字符，留足余量）
 
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime; // 开始时间，非空

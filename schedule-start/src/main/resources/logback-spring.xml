@@ -61,6 +61,26 @@
         </encoder>
     </appender>
 
+    <!-- 4. 请求访问日志：独立文件 access.log（与业务日志分离，便于排查请求流量） -->
+    <appender name="ACCESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/access.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <!-- 旧日志文件压缩为 .gz，保留 3 个备份 -->
+            <fileNamePattern>${LOG_PATH}/access.log.%i.gz</fileNamePattern>
+            <maxIndex>3</maxIndex>
+        </rollingPolicy>
+
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+        </triggeringPolicy>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
     <!-- 多环境日志级别配置 -->
     <springProfile name="dev">
         <!-- dev环境：日志级别DEBUG（详细），输出到控制台+文件 -->
@@ -72,6 +92,11 @@
         <logger name="com.example" level="DEBUG" additivity="false">
             <appender-ref ref="CONSOLE" />
             <appender-ref ref="FILE_DEV" />
+        </logger>
+        <!-- 请求访问日志：独立输出到 access.log（dev 下同时打印控制台），不再混入 app-dev.log -->
+        <logger name="com.funfun.schedule.filter.LoggingFilter" level="INFO" additivity="false">
+            <appender-ref ref="ACCESS_FILE" />
+            <appender-ref ref="CONSOLE" />
         </logger>
     </springProfile>
 
@@ -90,5 +115,9 @@
         <logger name="org.springframework.cloud.gateway" level="WARN" />
         <logger name="org.hibernate" level="WARN" />
         <logger name="reactor.netty" level="WARN" />
+        <!-- 请求访问日志：独立输出到 access.log，不再混入 app-prod.log -->
+        <logger name="com.funfun.schedule.filter.LoggingFilter" level="INFO" additivity="false">
+            <appender-ref ref="ACCESS_FILE" />
+        </logger>
     </springProfile>
 </configuration>

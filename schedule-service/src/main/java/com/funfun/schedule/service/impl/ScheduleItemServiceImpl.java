@@ -57,6 +57,13 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
         this.typeHandlerRegistry = typeHandlerRegistry;
     }
 
+    /** 「列入月度计划」可关联的源事项类型。 */
+    private static final Set<String> MONTHLY_PLAN_SOURCE_TYPES = Set.of(
+            ScheduleItemType.schedule.name(), ScheduleItemType.task.name(),
+            ScheduleItemType.goal.name(), ScheduleItemType.event.name());
+    /** 每年型月度计划的收尾跨度（年）。 */
+    private static final int MONTHLY_PLAN_YEARLY_SPAN_YEARS = 20;
+
     @Override
     public boolean createScheduleItems(Long userId, Long groupId,Long targetUserId, List<ScheduleItemDTO> scheduleItem) {
         for (ScheduleItemDTO scheduleItemDTO : scheduleItem) {
@@ -78,16 +85,91 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
             // 盖审计字段并兜底 NOT NULL 默认值（MapStruct.toEntity 可能用 DTO 的 null 覆盖实体初始值）。
             ScheduleItemSupport.stampCreate(scheduleItemEntity, userId);
 
-            scheduleItemRepository.save(scheduleItemEntity);
+            ScheduleItem saved = scheduleItemRepository.save(scheduleItemEntity);
+            // 「列入月度计划」联动：按需创建/更新/删除配套 monthlyPlan
+            syncMonthlyPlanCompanion(saved, userId);
         }
         return true;
+    }
+
+    /**
+     * 「列入月度计划」联动：源事项（日程/任务/目标/大事件）保存后，依据 extra.includeMonthlyPlan
+     * 与 repeatType(none|yearly)，同步一条 monthlyPlan 配套项。关联以 parentId 维系
+     * （companion.parentId = source.id）。完全联动：勾选→新增/更新；取消或不可关联→删除。
+     */
+    private void syncMonthlyPlanCompanion(ScheduleItem source, Long operatorUserId) {
+        if (source == null || source.getItemType() == null
+                || !MONTHLY_PLAN_SOURCE_TYPES.contains(source.getItemType())) {
+            return;
+        }
+        String repeatType = source.getRepeatType();
+        boolean repeatEligible = RepeatType.none.name().equals(repeatType)
+                || RepeatType.yearly.name().equals(repeatType);
+
+        JSONObject extra = ScheduleItemSupport.parseExtra(source.getExtra());
+        boolean include = repeatEligible && extra != null
+                && Boolean.TRUE.equals(extra.getBoolean("includeMonthlyPlan"));
+
+        List<ScheduleItem> companions = scheduleItemRepository
+                .findByParentIdAndItemType(source.getId(), ScheduleItemType.monthlyPlan.name());
+
+        if (!include) {
+            // 取消勾选 / 不可关联：清理历史配套
+            if (!companions.isEmpty()) {
+                scheduleItemRepository.deleteAll(companions);
+            }
+            return;
+        }
+
+        // 锚定到源起始月：none=当月一次性，yearly=该月每年重复
+        LocalDate anchor = source.getRepeatStartDay() != null
+                ? source.getRepeatStartDay() : LocalDateTime.now().toLocalDate();
+        LocalDate firstOfMonth = anchor.withDayOfMonth(1);
+        LocalDate planEndDay = RepeatType.yearly.name().equals(repeatType)
+                ? firstOfMonth.plusYears(MONTHLY_PLAN_YEARLY_SPAN_YEARS)
+                : firstOfMonth.withDayOfMonth(firstOfMonth.lengthOfMonth());
+
+        ScheduleItem companion = companions.isEmpty() ? new ScheduleItem() : companions.get(0);
+        companion.setItemType(ScheduleItemType.monthlyPlan.name());
+        companion.setParentId(source.getId());
+        companion.setItemTitle(source.getItemTitle());
+        companion.setItemDesc(source.getItemDesc());
+        companion.setRepeatType(repeatType);
+        companion.setRepeatKeys(null);
+        companion.setRepeatStartDay(firstOfMonth);
+        companion.setRepeatEndDay(planEndDay);
+        companion.setStartTime(firstOfMonth.atStartOfDay());
+        companion.setEndTime(DateUtil.getEndOfDay(planEndDay.atStartOfDay()));
+        companion.setUserId(source.getUserId());
+        companion.setGroupId(source.getGroupId());
+        companion.setCloseStatus(CloseStatus.OPEN);
+        companion.setExtra(null);
+
+        if (companion.getId() == null) {
+            ScheduleItemSupport.stampCreate(companion, operatorUserId);
+        } else {
+            ScheduleItemSupport.stampUpdate(companion, operatorUserId);
+        }
+        scheduleItemRepository.save(companion);
+
+        // 历史异常：存在多条配套时只保留第一条
+        if (companions.size() > 1) {
+            scheduleItemRepository.deleteAll(companions.subList(1, companions.size()));
+        }
     }
 
     @Override
     public ScheduleItemDTO getScheduleItemById(Long id) {
         Optional<ScheduleItem>  item =  scheduleItemRepository.findById(id);
         if (item.isPresent()){
-            return scheduleItemMapper.toDTO(item.get());
+            ScheduleItemDTO dto = scheduleItemMapper.toDTO(item.get());
+            // 回填「是否已关联月度计划」，供编辑表单初始化勾选（以实际配套存在为准）
+            boolean hasMonthlyPlan = !scheduleItemRepository
+                    .findByParentIdAndItemType(id, ScheduleItemType.monthlyPlan.name()).isEmpty();
+            JSONObject showExtra = dto.getShowExtra() != null ? dto.getShowExtra() : new JSONObject();
+            showExtra.put("hasMonthlyPlan", hasMonthlyPlan);
+            dto.setShowExtra(showExtra);
+            return dto;
         }
         return null;
     }
@@ -159,6 +241,13 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     }
 
     @Override
+    public List<ScheduleItemDTO> getActiveItems(Long groupId, Long userId, ScheduleItemType itemType) {
+        List<ScheduleItem> items = scheduleItemRepository
+                .findByGroupIdAndUserIdAndItemTypeAndCloseStatus(groupId, userId, itemType.name(), CloseStatus.OPEN);
+        return scheduleItemMapper.toDTOList(items);
+    }
+
+    @Override
     public ScheduleItem updateScheduleItem(Long id, ScheduleItem scheduleItem) {
         Optional<ScheduleItem> existingItem = scheduleItemRepository.findById(id);
         if (existingItem.isPresent()) {
@@ -186,6 +275,12 @@ public class ScheduleItemServiceImpl implements ScheduleItemService {
     @Override
     public void deleteScheduleItem(Long id) {
         if (scheduleItemRepository.existsById(id)) {
+            // 完全联动：删除源事项时一并删除其月度计划配套（companion.parentId = source.id）
+            List<ScheduleItem> companions = scheduleItemRepository
+                    .findByParentIdAndItemType(id, ScheduleItemType.monthlyPlan.name());
+            if (!companions.isEmpty()) {
+                scheduleItemRepository.deleteAll(companions);
+            }
             scheduleItemRepository.deleteById(id);
         } else {
             throw new RuntimeException("ScheduleItem not found with id: " + id);

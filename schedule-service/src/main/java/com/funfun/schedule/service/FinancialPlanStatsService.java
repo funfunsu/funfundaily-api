@@ -1,6 +1,7 @@
 package com.funfun.schedule.service;
 
 import com.funfun.schedule.dto.AssetProfitSummaryDTO;
+import com.funfun.schedule.dto.BatchStatsDTO;
 import com.funfun.schedule.dto.ProfitSummaryDTO;
 import com.funfun.schedule.dto.ProgressSnapshotDTO;
 
@@ -42,4 +43,12 @@ public interface FinancialPlanStatsService {
      * @return 执行进度快照
      */
     ProgressSnapshotDTO calcProgressSnapshot(Long planId);
+
+    /**
+     * 计算计划下每个批次的卡片汇总（正股 + 各期权 key）。
+     *
+     * @param planId 计划主键
+     * @return 批次卡片汇总列表，顺序与批次列表（按创建时间倒序）一致
+     */
+    List<BatchStatsDTO> calcBatchStats(Long planId);
 }
