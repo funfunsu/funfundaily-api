@@ -49,10 +49,15 @@ public class CheckinServiceImpl implements CheckinService {
     private static final String scoreKey = "score";
     private static final String taskTypeKey = "taskType";
     private static final String totalCntKey = "totalCount";
+    // 积分模式：each=单次打卡即得分；full（默认/缺省）=全部完成才得分
+    private static final String scoreModeKey = "scoreMode";
+    private static final String SCORE_MODE_EACH = "each";
+    // 每日打卡上限：>=1 时校验当天已打卡次数；缺省/<=0 表示不限制（兼容历史数据）
+    private static final String dailyLimitKey = "dailyLimit";
 
 
     private Integer getScore(JSONObject extraMap){
-        if (extraMap == null){
+        if (extraMap == null || extraMap.getInteger(scoreKey) == null){
             return 0;
         }
         return extraMap.getInteger(scoreKey);
@@ -71,10 +76,24 @@ public class CheckinServiceImpl implements CheckinService {
         Long operatorId = requestDto.getOperatorId(); // 操作人，通常是用户自己
 
         ScheduleItemDTO scheduleItemDTO = scheduleItemService.getScheduleItemById(taskId);
-        String taskType = scheduleItemDTO.getExtra() == null? null :scheduleItemDTO.getExtra().getString(taskTypeKey);
+        JSONObject itemExtra = scheduleItemDTO.getExtra();
         String taskKey = scheduleItemService.getTaskKey(scheduleItemDTO,requestDto.getTaskTime().toLocalDate());
         int existCount = checkinRecordRepository.countByGroupIdAndUserIdAndTaskKey(groupId,userId, taskKey);
-        Integer earnedScore = getScore(scheduleItemDTO.getExtra()); // 示例固定积分
+        Integer earnedScore = getScore(itemExtra); // 任务配置的单次积分
+
+        // --- 1. 每日打卡上限校验 ---
+        // dailyLimit>=1：限制同一自然日内该任务的打卡次数；缺省/<=0 视为不限制（兼容历史任务）
+        Integer dailyLimit = itemExtra == null ? null : itemExtra.getInteger(dailyLimitKey);
+        if (dailyLimit != null && dailyLimit >= 1) {
+            LocalDateTime dayStart = DateUtil.getStartOfDay(requestDto.getTaskTime());
+            LocalDateTime dayEnd = dayStart.plusDays(1);
+            int todayCount = checkinRecordRepository
+                    .findByGroupIdAndUserIdAndTaskTimeBetween(groupId, userId, taskId, dayStart, dayEnd)
+                    .size();
+            if (todayCount >= dailyLimit) {
+                CommonException.NOT_ALLOWED.throwsError("今日打卡次数已达上限（" + dailyLimit + " 次），明天再来吧");
+            }
+        }
 
 
         // --- 2. 创建打卡记录 ---
@@ -89,13 +108,12 @@ public class CheckinServiceImpl implements CheckinService {
         }
         recordExtra.put("title",scheduleItemDTO.getItemTitle());
 
-        boolean completeFlag;
-        Integer totalCount = scheduleItemDTO.getExtra().getInteger(totalCntKey);
+        Integer totalCount = itemExtra == null ? null : itemExtra.getInteger(totalCntKey);
         recordExtra.put("totalCount",totalCount);
-        //只有== 的时候更新，后面多打了不更新
-        completeFlag = totalCount == existCount + 1;
+        // 本次打卡是否使整个周期达成（只有刚好达到 totalCount 的那一次为 true，后面多打不再触发）
+        boolean completeFlag = totalCount != null && totalCount == existCount + 1;
 
-        // --- 更新任务信息
+        // --- 更新任务信息：周期达成时记录最近完成时间 ---
         if (completeFlag){
             ScheduleItemUpdateScope scheduleItemUpdateScope = scheduleItemDTO.getUpdateScope();
             if (scheduleItemUpdateScope == null){
@@ -103,7 +121,12 @@ public class CheckinServiceImpl implements CheckinService {
             }
             scheduleItemUpdateScope.setLastCompleteTime(completeTime);
             scheduleItemService.saveForTaskUpdate(scheduleItemDTO.getId(),scheduleItemUpdateScope);
-        }else{
+        }
+
+        // --- 积分模式：each=每次打卡都得分；full（默认）=仅周期全部完成才得分 ---
+        String scoreMode = itemExtra == null ? null : itemExtra.getString(scoreModeKey);
+        boolean awardEachCheckin = SCORE_MODE_EACH.equals(scoreMode);
+        if (!awardEachCheckin && !completeFlag){
             earnedScore = 0;
         }
         recordExtra.put("score",earnedScore);
