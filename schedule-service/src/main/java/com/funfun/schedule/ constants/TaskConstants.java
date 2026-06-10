@@ -12,4 +12,6 @@ public class TaskConstants {
     public static final String SCORE_MODE_FULL = "full";
     // 每日打卡上限：>=1 时限制同一自然日打卡次数；缺省/<=0 表示不限制
     public static final String dailyLimitKey = "dailyLimit";
+    // 周期全部完成额外奖励积分：>0 时在周期达成那一次额外发放
+    public static final String bonusScoreKey = "bonusScore";
 }
