@@ -1,5 +1,6 @@
 package com.funfun.schedule.dto.financialplan;
 
+import com.funfun.schedule.dto.BatchStatsDTO;
 import com.funfun.schedule.dto.ProfitSummaryDTO;
 import com.funfun.schedule.entity.FinancialPlan;
 import com.funfun.schedule.entity.FinancialPlanAsset;
@@ -25,4 +26,7 @@ public class FinancialPlanDetailResponse {
 
     /** 计划层收益汇总。 */
     private ProfitSummaryDTO summary;
+
+    /** 各批次卡片汇总（正股 + 各期权 key），顺序与 realizationBatches 一致。 */
+    private List<BatchStatsDTO> batchStats;
 }
